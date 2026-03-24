@@ -1,0 +1,99 @@
+import fs from "node:fs";
+import path from "node:path";
+import { getClaudeSettingsPath } from "../src/config/paths.js";
+import { isWindows } from "../src/util/platform.js";
+
+interface ClaudeSettings {
+  hooks?: {
+    PostToolUse?: Array<{ matcher: string; command: string }>;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+function getHookScriptPath(): string {
+  const thisFile = new URL(import.meta.url).pathname;
+  const normalized = process.platform === "win32" && thisFile.startsWith("/")
+    ? thisFile.slice(1)
+    : thisFile;
+  const hooksDir = path.resolve(path.dirname(normalized), "..", "hooks");
+
+  return isWindows()
+    ? path.join(hooksDir, "post-tool-use-review.ps1")
+    : path.join(hooksDir, "post-tool-use-review.sh");
+}
+
+function buildHookCommand(): string {
+  const scriptPath = getHookScriptPath();
+  return isWindows()
+    ? `powershell -ExecutionPolicy Bypass -File "${scriptPath}"`
+    : `bash "${scriptPath}"`;
+}
+
+export function installHook(): {
+  installed: boolean;
+  settingsPath: string;
+  message: string;
+} {
+  const settingsPath = getClaudeSettingsPath();
+  let settings: ClaudeSettings = {};
+
+  if (fs.existsSync(settingsPath)) {
+    try {
+      const raw = fs.readFileSync(settingsPath, "utf-8");
+      settings = JSON.parse(raw) as ClaudeSettings;
+    } catch {
+      return {
+        installed: false,
+        settingsPath,
+        message: `Failed to parse ${settingsPath}. Back it up and fix manually.`,
+      };
+    }
+  }
+
+  const hookCommand = buildHookCommand();
+  const hookEntry = { matcher: "Write|Edit|MultiEdit|NotebookEdit", command: hookCommand };
+
+  const existingHooks = settings.hooks?.PostToolUse ?? [];
+
+  // Check if already registered
+  const alreadyExists = existingHooks.some((h) => h.command.includes("codex-bridge"));
+  if (alreadyExists) {
+    return {
+      installed: false,
+      settingsPath,
+      message: "codex-bridge hook already registered.",
+    };
+  }
+
+  const updatedSettings: ClaudeSettings = {
+    ...settings,
+    hooks: {
+      ...settings.hooks,
+      PostToolUse: [...existingHooks, hookEntry],
+    },
+  };
+
+  const dir = path.dirname(settingsPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  fs.writeFileSync(settingsPath, JSON.stringify(updatedSettings, null, 2) + "\n", "utf-8");
+
+  // Ensure bash script is executable on unix
+  if (!isWindows()) {
+    const shPath = path.resolve(path.dirname(getHookScriptPath()), "post-tool-use-review.sh");
+    try {
+      fs.chmodSync(shPath, 0o755);
+    } catch {
+      // Best effort
+    }
+  }
+
+  return {
+    installed: true,
+    settingsPath,
+    message: `PostToolUse hook registered in ${settingsPath}`,
+  };
+}
