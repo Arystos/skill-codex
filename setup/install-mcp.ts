@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { getGlobalMcpConfigPath } from "../src/config/paths.js";
+import { getPackageRoot } from "../src/config/package-root.js";
 
 interface McpConfig {
   mcpServers?: Record<string, unknown>;
@@ -8,13 +9,7 @@ interface McpConfig {
 }
 
 function getServerEntryPath(): string {
-  // Resolve the path to our dist/index.js
-  const thisFile = new URL(import.meta.url).pathname;
-  // On Windows, remove leading slash from /C:/...
-  const normalized = process.platform === "win32" && thisFile.startsWith("/")
-    ? thisFile.slice(1)
-    : thisFile;
-  return path.resolve(path.dirname(normalized), "..", "dist", "index.js");
+  return path.join(getPackageRoot(), "dist", "index.js");
 }
 
 export function installMcp(options: { force?: boolean } = {}): {

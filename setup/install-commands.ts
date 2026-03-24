@@ -1,15 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { getGlobalCommandsDir } from "../src/config/paths.js";
+import { getPackageRoot } from "../src/config/package-root.js";
 
 const COMMAND_FILES = ["codex-review.md", "codex-do.md", "codex-consult.md"];
 
 function getCommandsSourceDir(): string {
-  const thisFile = new URL(import.meta.url).pathname;
-  const normalized = process.platform === "win32" && thisFile.startsWith("/")
-    ? thisFile.slice(1)
-    : thisFile;
-  return path.resolve(path.dirname(normalized), "..", "commands");
+  return path.join(getPackageRoot(), "commands");
 }
 
 export function installCommands(options: { global?: boolean; projectDir?: string } = {}): {

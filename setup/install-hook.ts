@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { getClaudeSettingsPath } from "../src/config/paths.js";
 import { isWindows } from "../src/util/platform.js";
+import { getPackageRoot } from "../src/config/package-root.js";
 
 interface ClaudeSettings {
   hooks?: {
@@ -12,12 +13,7 @@ interface ClaudeSettings {
 }
 
 function getHookScriptPath(): string {
-  const thisFile = new URL(import.meta.url).pathname;
-  const normalized = process.platform === "win32" && thisFile.startsWith("/")
-    ? thisFile.slice(1)
-    : thisFile;
-  const hooksDir = path.resolve(path.dirname(normalized), "..", "hooks");
-
+  const hooksDir = path.join(getPackageRoot(), "hooks");
   return isWindows()
     ? path.join(hooksDir, "post-tool-use-review.ps1")
     : path.join(hooksDir, "post-tool-use-review.sh");
