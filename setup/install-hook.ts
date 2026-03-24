@@ -4,9 +4,19 @@ import { getClaudeSettingsPath } from "../src/config/paths.js";
 import { isWindows } from "../src/util/platform.js";
 import { getPackageRoot } from "../src/config/package-root.js";
 
+interface HookCommand {
+  type: "command";
+  command: string;
+}
+
+interface HookEntry {
+  matcher: string;
+  hooks: HookCommand[];
+}
+
 interface ClaudeSettings {
   hooks?: {
-    PostToolUse?: Array<{ matcher: string; command: string }>;
+    PostToolUse?: HookEntry[];
     [key: string]: unknown;
   };
   [key: string]: unknown;
@@ -59,12 +69,24 @@ export function installHook(): {
       message: "Hook script not found. Run `npm run build` first.",
     };
   }
-  const hookEntry = { matcher: "Write|Edit|MultiEdit|NotebookEdit", command: hookResult.command };
+
+  // Correct Claude Code hook format: matcher + hooks array
+  const hookEntry: HookEntry = {
+    matcher: "Write|Edit|MultiEdit|NotebookEdit",
+    hooks: [
+      {
+        type: "command",
+        command: hookResult.command,
+      },
+    ],
+  };
 
   const existingHooks = settings.hooks?.PostToolUse ?? [];
 
-  // Check if already registered
-  const alreadyExists = existingHooks.some((h) => h.command.includes("codex-bridge"));
+  // Check if already registered (search in nested hooks array)
+  const alreadyExists = existingHooks.some((h) =>
+    h.hooks?.some((inner) => inner.command.includes("codex-bridge")),
+  );
   if (alreadyExists) {
     return {
       installed: false,
