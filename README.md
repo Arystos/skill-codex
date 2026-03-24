@@ -168,7 +168,7 @@ If a previous run crashed, a stale `.codex-bridge.lock` may remain. It auto-clea
 
 ## Contributing
 
-Contributions welcome! Open an issue or submit a PR.
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Support
 
