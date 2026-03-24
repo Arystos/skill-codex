@@ -1,64 +1,69 @@
 # codex-bridge
 
+![Windows](https://img.shields.io/badge/Windows-0078D4?style=flat&logo=windows&logoColor=white)
+![macOS](https://img.shields.io/badge/macOS-000000?style=flat&logo=apple&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat&logo=linux&logoColor=black)
+![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?style=flat&logo=node.js&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-blue?style=flat)
+![Version](https://img.shields.io/badge/Version-0.1.0-purple?style=flat)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5E5B?style=flat&logo=ko-fi&logoColor=white)](https://ko-fi.com/arystos)
+
 A cross-platform [Claude Code](https://code.claude.com) plugin that integrates [OpenAI Codex CLI](https://github.com/openai/codex) for code review, task delegation, and consultation. Uses your existing Codex subscription — no API key required.
 
 ## Why?
 
-Claude Code and Codex CLI have different strengths. Claude excels at reasoning, architecture, and complex refactors. Codex is fast, thorough, and great at focused execution and review. codex-bridge lets them work together from a single terminal.
+Claude Code and Codex CLI have different strengths. Claude excels at reasoning, architecture, and complex refactors. Codex is fast, thorough, and great at focused execution and review. **codex-bridge** lets them work together from a single terminal — no second window, no copy-paste, no context loss.
 
-## Features
-
-- **`/codex-review`** — Have Codex review your current changes as a second reviewer
-- **`/codex-do`** — Delegate well-scoped implementation tasks to Codex
-- **`/codex-consult`** — Get a second opinion on architecture or design decisions
-- **Auto-review** — Smart PostToolUse hook suggests review after significant changes
-- **Cross-platform** — Windows, macOS, Linux
-- **Subscription-first** — Works with `codex login`, no `OPENAI_API_KEY` needed
-- **Edge case handling** — Retry logic, timeout, anti-recursion, lock files, pre-flight checks
+* **`/codex-review`** — Have Codex review your current changes as a second reviewer
+* **`/codex-do`** — Delegate well-scoped implementation tasks to Codex
+* **`/codex-consult`** — Get a second opinion on architecture or design decisions
+* **Auto-review hook** — Smart PostToolUse hook suggests review after significant changes
+* **Subscription-first** — Works with `codex login`, no `OPENAI_API_KEY` needed
+* **Edge case handling** — Retry logic, timeout, anti-recursion, lock files, pre-flight checks
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org) >= 18
-- [Claude Code](https://code.claude.com) installed and authenticated
-- [Codex CLI](https://github.com/openai/codex) installed and logged in (`codex login`)
+* [Node.js](https://nodejs.org) >= 18
+* [Claude Code](https://code.claude.com) installed and authenticated
+* [Codex CLI](https://github.com/openai/codex) installed and logged in (`codex login`)
 
 ## Quick Start
 
-```bash
+```shell
+# 1. Install and configure everything in one command
 npx codex-bridge setup
-```
 
-This one command:
-1. Registers the MCP server in Claude Code settings
-2. Installs slash commands globally (`~/.claude/commands/`)
-3. Configures the auto-review hook
-4. Verifies everything works
+# 2. Restart Claude Code to load the MCP server
 
-## Usage
-
-### Manual Commands (invoke when you want)
-
-```
+# 3. Use the commands in any project
 /codex-review              # Review uncommitted changes
 /codex-do "write tests"    # Delegate a task to Codex
 /codex-consult "approach?" # Get a second opinion
 ```
 
-### Auto-review (fires automatically)
+The setup command:
+1. Registers the MCP server in your Claude Code config (`~/.claude.json`)
+2. Installs slash commands globally (`~/.claude/commands/`)
+3. Configures the auto-review PostToolUse hook
+4. Verifies everything works
 
-After significant code changes (3+ files, 100+ lines, security-related paths), Claude gets a suggestion to run a Codex review. Trivial changes (docs-only, < 5 lines, whitespace) are skipped to preserve your Codex quota.
+> **Tip:** Add `.codex-bridge.lock` to your `.gitignore`
 
 ## How It Works
 
 ```
 You in Claude Code
-  │
-  ├─ /codex-review        → MCP tool call → codex exec (read-only) → review findings
-  ├─ /codex-do "task"     → MCP tool call → codex exec --full-auto → reviewed output
-  └─ /codex-consult "q"   → MCP tool call → codex exec (read-only) → synthesized opinion
+  |
+  |-- /codex-review        --> MCP tool --> codex exec (read-only) --> review findings
+  |-- /codex-do "task"     --> MCP tool --> codex exec --full-auto --> reviewed output
+  +-- /codex-consult "q"   --> MCP tool --> codex exec (read-only) --> synthesized opinion
 ```
 
-The MCP server spawns `codex exec` as a subprocess, using your logged-in Codex session. Claude sees the output and critically evaluates it — Codex is treated as a peer, not an authority.
+The MCP server spawns `codex exec` as a subprocess, using your logged-in Codex session. Claude sees the output and critically evaluates it — **Codex is treated as a peer, not an authority**.
+
+### Auto-review
+
+After significant code changes (3+ files, 100+ lines, security-related paths), the PostToolUse hook suggests running `/codex-review`. Trivial changes (docs-only, < 5 lines, whitespace) are skipped to preserve your Codex quota.
 
 ## Configuration
 
@@ -68,7 +73,18 @@ Environment variables (all optional):
 |----------|---------|-------------|
 | `CODEX_BRIDGE_TIMEOUT_MS` | `600000` (10 min) | Subprocess timeout |
 | `CODEX_BRIDGE_MAX_RETRIES` | `3` | Retry count for transient errors |
-| `CODEX_BRIDGE_DEBUG` | — | Enable debug logging |
+| `CODEX_BRIDGE_DEBUG` | — | Enable debug logging to stderr |
+
+### Smart Filter Thresholds
+
+| Condition | Action | Rationale |
+|-----------|--------|-----------|
+| < 5 lines changed | Skip | Not worth the Codex call |
+| All files are `.md`/`.txt`/`.rst` | Skip | Documentation-only |
+| Whitespace or import-only diff | Skip | Formatting change |
+| Path contains `auth`/`security`/`crypto` | **Force review** | Security-sensitive |
+| > 100 lines changed | **Force review** | High-impact change |
+| > 3 files changed | **Force review** | Cross-cutting change |
 
 ## Edge Cases Handled
 
@@ -77,21 +93,49 @@ Environment variables (all optional):
 | Codex not installed | Clear error with install instructions |
 | Auth expired | Advises `codex login`, no retry |
 | Network down | Retries 3x with exponential backoff |
-| Rate limited (429) | Retries with backoff |
-| Codex hangs | Killed after timeout (SIGTERM → SIGKILL) |
-| Concurrent runs | Lock file prevents conflicts |
-| Recursive calls | Depth limit prevents infinite loops |
+| Rate limited (429) | Retries with backoff + jitter |
+| Codex hangs | Killed after timeout (SIGTERM then SIGKILL) |
+| Concurrent runs | Lock file prevents conflicts (stale after 15min) |
+| Recursive calls | `CODEX_BRIDGE_DEPTH` limit prevents infinite loops |
 | Trivial changes | Smart filter skips auto-review |
+| Empty Codex output | Retries once, then reports clearly |
+
+## Project Structure
+
+```
+codex-bridge/
+|-- src/
+|   |-- index.ts              # MCP server entry point
+|   |-- server.ts             # MCP server + tool registration
+|   |-- tools/codex-exec.ts   # codex_exec tool handler
+|   |-- runner/               # exec-runner, retry, timeout, output parser
+|   |-- guards/               # pre-flight checks (binary, auth, git, recursion, lock)
+|   |-- filter/               # smart diff filter for auto-review
+|   |-- lock/                 # lock file with stale detection
+|   |-- errors/               # typed error classes
+|   |-- config/               # constants, paths, platform utils
+|   +-- util/                 # platform detection, truncation
+|-- commands/
+|   |-- codex-review.md       # /codex-review slash command
+|   |-- codex-do.md           # /codex-do slash command
+|   +-- codex-consult.md      # /codex-consult slash command
+|-- hooks/
+|   |-- post-tool-use-review.sh   # Auto-review hook (macOS/Linux)
+|   +-- post-tool-use-review.ps1  # Auto-review hook (Windows)
+|-- setup/                    # npx codex-bridge setup installer
+|-- bin/                      # CLI entry point
++-- __tests__/                # vitest test suite
+```
 
 ## Uninstall
 
-```bash
+```shell
 npx codex-bridge uninstall
 ```
 
 ## Development
 
-```bash
+```shell
 git clone https://github.com/Arystos/codex-bridge.git
 cd codex-bridge
 npm install
@@ -99,11 +143,38 @@ npm run build
 npm test
 ```
 
+## Troubleshooting
+
+**Setup says "Hook script not found"**
+Run `npm run build` first, then `npx codex-bridge setup` again. The hook scripts live in the package root, not in `dist/`.
+
+**`/codex-review` says "Unknown tool: codex_exec"**
+Restart Claude Code after running setup. The MCP server only loads on startup.
+
+**Codex keeps timing out**
+Increase the timeout: `export CODEX_BRIDGE_TIMEOUT_MS=1200000` (20 min). Large codebases can take longer.
+
+**"Auth expired" but Codex works in another terminal**
+The MCP server runs in its own process. Run `codex login` and restart Claude Code.
+
+**Lock file blocking runs**
+If a previous run crashed, a stale `.codex-bridge.lock` may remain. It auto-cleans after 15 minutes, or delete it manually.
+
 ## Inspired By
 
-- [Dunqing/claude-codex-bridge](https://github.com/Dunqing/claude-codex-bridge) — retry logic, anti-recursion, output parsing
-- [EpocheDrift/claude-codex-skill](https://github.com/EpocheDrift/claude-codex-skill) — subscription-first, delegation heuristics
-- [incadawr/claude-codex-skill](https://github.com/incadawr/claude-codex-skill) — MCP server approach, auto-triggers
+* [Dunqing/claude-codex-bridge](https://github.com/Dunqing/claude-codex-bridge) — retry logic, anti-recursion, output parsing
+* [EpocheDrift/claude-codex-skill](https://github.com/EpocheDrift/claude-codex-skill) — subscription-first, delegation heuristics
+* [incadawr/claude-codex-skill](https://github.com/incadawr/claude-codex-skill) — MCP server approach, auto-triggers
+
+## Contributing
+
+Contributions welcome! Open an issue or submit a PR.
+
+## Support
+
+If you find this useful, consider supporting the project:
+
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/arystos)
 
 ## License
 
