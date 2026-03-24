@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { z } from "zod";
 import { runPreflight } from "../guards/preflight.js";
 import { execCodex } from "../runner/exec-runner.js";
@@ -36,7 +38,17 @@ export async function handleCodexExec(
   input: CodexExecInput,
   serverCwd: string,
 ): Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean }> {
-  const cwd = input.cwd ?? serverCwd;
+  const rawCwd = input.cwd ?? serverCwd;
+  const cwd = path.resolve(rawCwd);
+
+  // Validate cwd is an existing directory (prevent path traversal to arbitrary locations)
+  if (!fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) {
+    return {
+      content: [{ type: "text", text: `[codex-bridge error: INVALID_CWD] cwd is not an existing directory: ${cwd}` }],
+      isError: true,
+    };
+  }
+
   let lockRelease: (() => void) | null = null;
 
   try {

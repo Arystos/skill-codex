@@ -23,11 +23,15 @@ function getHookScriptPath(): string {
     : path.join(hooksDir, "post-tool-use-review.sh");
 }
 
-function buildHookCommand(): string {
+function buildHookCommand(): { command: string; scriptPath: string } | null {
   const scriptPath = getHookScriptPath();
-  return isWindows()
+  if (!fs.existsSync(scriptPath)) {
+    return null;
+  }
+  const command = isWindows()
     ? `powershell -ExecutionPolicy Bypass -File "${scriptPath}"`
     : `bash "${scriptPath}"`;
+  return { command, scriptPath };
 }
 
 export function installHook(): {
@@ -51,8 +55,15 @@ export function installHook(): {
     }
   }
 
-  const hookCommand = buildHookCommand();
-  const hookEntry = { matcher: "Write|Edit|MultiEdit|NotebookEdit", command: hookCommand };
+  const hookResult = buildHookCommand();
+  if (!hookResult) {
+    return {
+      installed: false,
+      settingsPath,
+      message: "Hook script not found. Run `npm run build` first.",
+    };
+  }
+  const hookEntry = { matcher: "Write|Edit|MultiEdit|NotebookEdit", command: hookResult.command };
 
   const existingHooks = settings.hooks?.PostToolUse ?? [];
 
@@ -79,7 +90,10 @@ export function installHook(): {
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  fs.writeFileSync(settingsPath, JSON.stringify(updatedSettings, null, 2) + "\n", "utf-8");
+  // Atomic write: temp file then rename
+  const tmpPath = settingsPath + ".tmp";
+  fs.writeFileSync(tmpPath, JSON.stringify(updatedSettings, null, 2) + "\n", "utf-8");
+  fs.renameSync(tmpPath, settingsPath);
 
   // Ensure bash script is executable on unix
   if (!isWindows()) {

@@ -66,25 +66,38 @@ export function acquireLock(cwd: string): LockHandle {
     const fsErr = err as NodeJS.ErrnoException;
     if (fsErr.code === "EEXIST") {
       tryRemoveStaleLock(lockPath);
-      // Retry once after stale removal
-      fs.writeFileSync(lockPath, content, { flag: "wx" });
+      // Retry once after stale removal — wrap in try/catch for TOCTOU race
+      try {
+        fs.writeFileSync(lockPath, content, { flag: "wx" });
+      } catch (retryErr: unknown) {
+        const retryFsErr = retryErr as NodeJS.ErrnoException;
+        if (retryFsErr.code === "EEXIST") {
+          // Another process won the race
+          throw new LockConflictError(0);
+        }
+        throw retryErr;
+      }
     } else {
       throw err;
     }
   }
 
-  const release = (): void => {
-    try {
-      fs.unlinkSync(lockPath);
-    } catch {
-      // Lock file may already be gone
-    }
+  // Signal handlers — stored for removal in release()
+  const onExit = (): void => {
+    try { fs.unlinkSync(lockPath); } catch { /* ignore */ }
   };
 
-  const onExit = (): void => release();
   process.on("exit", onExit);
   process.on("SIGINT", onExit);
   process.on("SIGTERM", onExit);
+
+  const release = (): void => {
+    // Remove signal handlers first to prevent double-cleanup
+    process.removeListener("exit", onExit);
+    process.removeListener("SIGINT", onExit);
+    process.removeListener("SIGTERM", onExit);
+    try { fs.unlinkSync(lockPath); } catch { /* ignore */ }
+  };
 
   return { release };
 }

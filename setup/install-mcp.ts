@@ -70,7 +70,10 @@ export function installMcp(options: { force?: boolean } = {}): {
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  fs.writeFileSync(configPath, JSON.stringify(updatedConfig, null, 2) + "\n", "utf-8");
+  // Atomic write: write to temp file then rename to prevent corruption
+  const tmpPath = configPath + ".tmp";
+  fs.writeFileSync(tmpPath, JSON.stringify(updatedConfig, null, 2) + "\n", "utf-8");
+  fs.renameSync(tmpPath, configPath);
 
   return {
     installed: true,

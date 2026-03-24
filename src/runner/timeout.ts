@@ -17,14 +17,12 @@ export function setupTimeout(
 
       // Phase 2: force kill after grace period
       graceTimer = setTimeout(() => {
-        if (!child.killed) {
-          if (isWindows()) {
-            // On Windows, SIGTERM maps to TerminateProcess already
-            // but we try an explicit kill as fallback
-            child.kill("SIGKILL");
-          } else {
+        try {
+          if (!child.killed) {
             child.kill("SIGKILL");
           }
+        } catch {
+          // Process may already be gone — ignore
         }
       }, KILL_GRACE_MS);
 

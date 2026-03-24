@@ -1,11 +1,12 @@
 import { spawn } from "node:child_process";
-import { BRIDGE_DEPTH_ENV, DEFAULT_TIMEOUT_MS, TIMEOUT_ENV, TRANSIENT_PATTERNS, AUTH_ERROR_PATTERNS } from "../config/constants.js";
+import which from "which";
+import { BRIDGE_DEPTH_ENV, DEFAULT_TIMEOUT_MS, TIMEOUT_ENV } from "../config/constants.js";
 import { getNextDepth } from "../guards/check-recursion.js";
-import { isWindows } from "../util/platform.js";
 import { setupTimeout } from "./timeout.js";
 import { parseCodexOutput, type CodexResult } from "./output-parser.js";
 import {
   BridgeError,
+  CliNotFoundError,
   AuthExpiredError,
   RateLimitError,
   ServerError,
@@ -17,7 +18,6 @@ export interface ExecParams {
   readonly cwd: string;
   readonly mode: "exec" | "full-auto";
   readonly timeoutMs?: number;
-  readonly additionalArgs?: readonly string[];
 }
 
 function getTimeout(override?: number): number {
@@ -33,7 +33,8 @@ function getTimeout(override?: number): number {
 function classifyError(exitCode: number, stderr: string): BridgeError {
   const lower = stderr.toLowerCase();
 
-  if (AUTH_ERROR_PATTERNS.some((p) => lower.includes(p))) {
+  // Check auth errors first but exclude generic "auth" in context
+  if (lower.includes("unauthorized") || lower.includes("401") || lower.includes("api key")) {
     return new AuthExpiredError();
   }
   if (lower.includes("rate limit") || lower.includes("429") || lower.includes("too many requests")) {
@@ -53,7 +54,18 @@ function classifyError(exitCode: number, stderr: string): BridgeError {
   );
 }
 
-export function execCodex(params: ExecParams): Promise<CodexResult> {
+async function resolveCodexBinary(): Promise<string> {
+  try {
+    return await which("codex");
+  } catch {
+    throw new CliNotFoundError();
+  }
+}
+
+export async function execCodex(params: ExecParams): Promise<CodexResult> {
+  // Resolve the full binary path — no shell needed
+  const codexPath = await resolveCodexBinary();
+
   return new Promise((resolve, reject) => {
     const timeoutMs = getTimeout(params.timeoutMs);
     const args: string[] = ["exec", "--json", "--skip-git-repo-check"];
@@ -64,22 +76,23 @@ export function execCodex(params: ExecParams): Promise<CodexResult> {
       args.push("--sandbox", "read-only");
     }
 
-    if (params.additionalArgs) {
-      args.push(...params.additionalArgs);
-    }
+    // Prompt passed via stdin to avoid shell injection — NOT as a positional arg
+    const stdinPrompt = params.prompt;
 
-    args.push(params.prompt);
+    // Use "-" to tell codex to read prompt from stdin
+    args.push("-");
 
     const env = {
       ...process.env,
       [BRIDGE_DEPTH_ENV]: String(getNextDepth()),
     };
 
-    const child = spawn("codex", args, {
+    // shell: false — codexPath is the resolved absolute path, no shell resolution needed
+    const child = spawn(codexPath, args, {
       cwd: params.cwd,
       env,
       stdio: ["pipe", "pipe", "pipe"],
-      shell: isWindows(),
+      shell: false,
       windowsHide: true,
     });
 
@@ -96,6 +109,8 @@ export function execCodex(params: ExecParams): Promise<CodexResult> {
       stderr += chunk.toString();
     });
 
+    // Write prompt via stdin then close — safe from shell injection
+    child.stdin?.write(stdinPrompt);
     child.stdin?.end();
 
     const onClose = (exitCode: number | null): void => {
@@ -119,7 +134,7 @@ export function execCodex(params: ExecParams): Promise<CodexResult> {
     child.on("error", (err: NodeJS.ErrnoException) => {
       clearTimeout_();
       if (err.code === "ENOENT") {
-        reject(new BridgeError("codex command not found", "CLI_NOT_FOUND", false));
+        reject(new CliNotFoundError());
       } else {
         reject(new BridgeError(`Failed to spawn codex: ${err.message}`, "SPAWN_ERROR", false));
       }
