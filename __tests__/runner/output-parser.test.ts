@@ -35,13 +35,38 @@ describe("parseCodexOutput", () => {
     expect(result.content).toBe("Final result");
   });
 
-  it("uses last message when multiple exist", () => {
+  it("accumulates when multiple messages exist", () => {
     const jsonl = [
       '{"type":"message","content":"First"}',
       '{"type":"message","content":"Second"}',
     ].join("\n");
     const result = parseCodexOutput(jsonl);
-    expect(result.content).toBe("Second");
+    expect(result.content).toContain("First");
+    expect(result.content).toContain("Second");
+  });
+
+  it("accumulates multiple messages", () => {
+    const jsonl = [
+      '{"type":"message","content":"Alpha"}',
+      '{"type":"message","content":"Beta"}',
+      '{"type":"message","content":"Gamma"}',
+    ].join("\n");
+    const result = parseCodexOutput(jsonl);
+    expect(result.content).toContain("Alpha");
+    expect(result.content).toContain("Beta");
+    expect(result.content).toContain("Gamma");
+  });
+
+  it("prefers result type over accumulated messages", () => {
+    const jsonl = [
+      '{"type":"message","content":"Intermediate step"}',
+      '{"type":"message","content":"Another step"}',
+      '{"type":"result","content":"Final result"}',
+    ].join("\n");
+    const result = parseCodexOutput(jsonl);
+    expect(result.content).toBe("Final result");
+    expect(result.content).not.toContain("Intermediate step");
+    expect(result.content).not.toContain("Another step");
   });
 
   it("skips non-JSON lines gracefully", () => {

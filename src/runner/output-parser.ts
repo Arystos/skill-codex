@@ -12,33 +12,34 @@ export function parseCodexOutput(raw: string): CodexResult {
   }
 
   const lines = raw.split("\n").filter((line) => line.trim());
-  let agentMessage = "";
+  const messages: string[] = [];
+  let resultContent: string | null = null;
 
   for (const line of lines) {
     try {
       const parsed = JSON.parse(line);
 
+      // Handle result type — takes priority over all other messages
+      if (parsed.type === "result" && typeof parsed.content === "string") {
+        resultContent = parsed.content;
+        continue;
+      }
+
       // Handle standard event format
       if (parsed.type === "message" && typeof parsed.content === "string") {
-        agentMessage = parsed.content;
+        messages.push(parsed.content);
         continue;
       }
 
       // Handle nested item format (Codex JSONL)
       if (parsed.item?.type === "agent_message" && typeof parsed.item.text === "string") {
-        agentMessage = parsed.item.text;
+        messages.push(parsed.item.text);
         continue;
       }
 
       // Handle flat legacy format
       if (parsed.itemType === "agent_message" && typeof parsed.text === "string") {
-        agentMessage = parsed.text;
-        continue;
-      }
-
-      // Handle result type
-      if (parsed.type === "result" && typeof parsed.content === "string") {
-        agentMessage = parsed.content;
+        messages.push(parsed.text);
         continue;
       }
     } catch {
@@ -46,9 +47,14 @@ export function parseCodexOutput(raw: string): CodexResult {
     }
   }
 
-  // If no structured output found, use the raw text (minus any obvious preamble)
-  if (!agentMessage) {
-    // Try to extract the last substantial block of text
+  let agentMessage: string;
+
+  if (resultContent !== null) {
+    agentMessage = resultContent;
+  } else if (messages.length > 0) {
+    agentMessage = messages.join("\n\n");
+  } else {
+    // If no structured output found, use the raw text (minus any obvious preamble)
     const substantiveLines = lines.filter(
       (line) => !line.startsWith("OpenAI Codex") && !line.startsWith("---") && !line.startsWith("tokens used"),
     );
