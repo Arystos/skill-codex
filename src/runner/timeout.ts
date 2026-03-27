@@ -12,19 +12,26 @@ export function setupTimeout(
 
   const promise = new Promise<never>((_resolve, reject) => {
     timer = setTimeout(() => {
-      // Phase 1: graceful kill
-      child.kill("SIGTERM");
+      if (isWindows()) {
+        // On Windows, SIGTERM is silently ignored by Node.js — it maps to
+        // TerminateProcess regardless of signal name.  Call kill() with no
+        // argument so the intent is explicit and no grace timer is needed.
+        child.kill();
+      } else {
+        // Phase 1: graceful kill
+        child.kill("SIGTERM");
 
-      // Phase 2: force kill after grace period
-      graceTimer = setTimeout(() => {
-        try {
-          if (!child.killed) {
-            child.kill("SIGKILL");
+        // Phase 2: force kill after grace period
+        graceTimer = setTimeout(() => {
+          try {
+            if (!child.killed) {
+              child.kill("SIGKILL");
+            }
+          } catch {
+            // Process may already be gone — ignore
           }
-        } catch {
-          // Process may already be gone — ignore
-        }
-      }, KILL_GRACE_MS);
+        }, KILL_GRACE_MS);
+      }
 
       reject(new TimeoutError(timeoutMs));
     }, timeoutMs);
