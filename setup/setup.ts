@@ -1,7 +1,14 @@
+import fs from "node:fs";
+import path from "node:path";
 import { installMcp } from "./install-mcp.js";
 import { installCommands } from "./install-commands.js";
 import { installHook } from "./install-hook.js";
 import { runVerification } from "./verify.js";
+import {
+  getGlobalMcpConfigPath,
+  getGlobalCommandsDir,
+  getClaudeSettingsPath,
+} from "../src/config/paths.js";
 
 function log(icon: string, message: string): void {
   process.stdout.write(`${icon} ${message}\n`);
@@ -53,10 +60,67 @@ export async function runSetup(options: { force?: boolean } = {}): Promise<boole
 
 export async function runUninstall(): Promise<void> {
   log(">>", "skill-codex uninstall\n");
-  log("  ", "To fully uninstall:");
-  log("  ", "1. Run: claude mcp remove skill-codex");
-  log("  ", "2. Delete ~/.claude/commands/codex-review.md");
-  log("  ", "3. Delete ~/.claude/commands/codex-do.md");
-  log("  ", "4. Delete ~/.claude/commands/codex-consult.md");
-  log("  ", "5. Remove the skill-codex PostToolUse hook from ~/.claude/settings.json");
+
+  // Step 1: Remove MCP server from ~/.claude.json
+  const mcpConfigPath = getGlobalMcpConfigPath();
+  try {
+    const raw = fs.readFileSync(mcpConfigPath, "utf-8");
+    const config = JSON.parse(raw) as Record<string, unknown>;
+    const mcpServers = (config as { mcpServers?: Record<string, unknown> }).mcpServers;
+    if (mcpServers && "skill-codex" in mcpServers) {
+      delete mcpServers["skill-codex"];
+      fs.writeFileSync(mcpConfigPath, JSON.stringify(config, null, 2) + "\n", "utf-8");
+      log("[ok]", "Removed MCP server");
+    } else {
+      log("[--]", "MCP server not found");
+    }
+  } catch {
+    log("[--]", "MCP server not found (could not read ~/.claude.json)");
+  }
+
+  // Step 2: Remove slash commands from ~/.claude/commands/
+  const commandsDir = getGlobalCommandsDir();
+  const commandFiles = ["codex-review.md", "codex-do.md", "codex-consult.md"];
+  for (const file of commandFiles) {
+    const filePath = path.join(commandsDir, file);
+    try {
+      fs.unlinkSync(filePath);
+      log("[ok]", `Removed ${file}`);
+    } catch {
+      log("[--]", `${file} not found`);
+    }
+  }
+
+  // Step 3: Remove PostToolUse hook from ~/.claude/settings.json
+  const settingsPath = getClaudeSettingsPath();
+  try {
+    const raw = fs.readFileSync(settingsPath, "utf-8");
+    const settings = JSON.parse(raw) as Record<string, unknown>;
+    type HookEntry = { command?: string; hooks?: HookEntry[] };
+    type HooksMap = Record<string, HookEntry[]>;
+    const hooks = settings.hooks as HooksMap | undefined;
+    if (hooks) {
+      let removed = false;
+      for (const eventType of Object.keys(hooks)) {
+        const before = hooks[eventType].length;
+        hooks[eventType] = hooks[eventType].filter(
+          (entry) => !(entry.command ?? "").includes("skill-codex")
+        );
+        if (hooks[eventType].length < before) removed = true;
+      }
+      if (removed) {
+        fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n", "utf-8");
+        log("[ok]", "Removed PostToolUse hook");
+      } else {
+        log("[--]", "PostToolUse hook not found");
+      }
+    } else {
+      log("[--]", "PostToolUse hook not found");
+    }
+  } catch {
+    log("[--]", "Could not read ~/.claude/settings.json");
+  }
+
+  log("", "");
+  log("[ok]", "Uninstall complete. Restart Claude Code to apply changes.");
 }
