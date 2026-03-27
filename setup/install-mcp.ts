@@ -40,7 +40,7 @@ export function installMcp(options: { force?: boolean } = {}): {
     return {
       installed: false,
       configPath,
-      message: "codex-bridge MCP server already registered. Use --force to overwrite.",
+      message: "skill-codex MCP server already registered. Use --force to overwrite.",
     };
   }
 

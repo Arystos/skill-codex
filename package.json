@@ -1,12 +1,18 @@
 {
-  "name": "codex-bridge",
-  "version": "0.1.0",
-  "description": "Cross-platform Claude Code plugin that integrates OpenAI Codex CLI for code review, task delegation, and consultation",
+  "name": "skill-codex",
+  "version": "0.2.0",
+  "description": "Cross-platform Claude Code skill that integrates OpenAI Codex CLI for code review, task delegation, and consultation via MCP",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "bin": {
-    "codex-bridge": "./dist/bin/codex-bridge.js"
+    "skill-codex": "./dist/bin/skill-codex.js"
   },
   "scripts": {
     "build": "tsup",
@@ -14,7 +20,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },
   "files": [
@@ -32,13 +38,29 @@
     "mcp",
     "ai-coding",
     "code-review",
-    "developer-tools"
+    "developer-tools",
+    "mcp-server",
+    "model-context-protocol",
+    "codex-cli",
+    "llm-tools",
+    "ai-tools",
+    "code-review-automation",
+    "openai-codex",
+    "skill"
   ],
   "author": "Arystos",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Arystos/codex-bridge.git"
+    "url": "git+https://github.com/Arystos/skill-codex.git"
+  },
+  "homepage": "https://github.com/Arystos/skill-codex#readme",
+  "bugs": {
+    "url": "https://github.com/Arystos/skill-codex/issues"
+  },
+  "funding": {
+    "type": "ko-fi",
+    "url": "https://ko-fi.com/arystos"
   },
   "engines": {
     "node": ">=18"

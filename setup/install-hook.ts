@@ -91,7 +91,7 @@ export function installHook(): {
     return {
       installed: false,
       settingsPath,
-      message: "codex-bridge hook already registered.",
+      message: "skill-codex hook already registered.",
     };
   }
 
