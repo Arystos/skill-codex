@@ -26,12 +26,12 @@ export type CodexExecInput = z.infer<typeof inputSchema>;
 
 function formatError(err: unknown): string {
   if (err instanceof BridgeError) {
-    return `[codex-bridge error: ${err.code}] ${err.message}`;
+    return `[skill-codex error: ${err.code}] ${err.message}`;
   }
   if (err instanceof Error) {
-    return `[codex-bridge error] ${err.message}`;
+    return `[skill-codex error] ${err.message}`;
   }
-  return `[codex-bridge error] Unknown error: ${String(err)}`;
+  return `[skill-codex error] Unknown error: ${String(err)}`;
 }
 
 export async function handleCodexExec(
@@ -44,7 +44,7 @@ export async function handleCodexExec(
   // Validate cwd is an existing directory (prevent path traversal to arbitrary locations)
   if (!fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) {
     return {
-      content: [{ type: "text", text: `[codex-bridge error: INVALID_CWD] cwd is not an existing directory: ${cwd}` }],
+      content: [{ type: "text", text: `[skill-codex error: INVALID_CWD] cwd is not an existing directory: ${cwd}` }],
       isError: true,
     };
   }

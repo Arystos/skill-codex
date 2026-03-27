@@ -8,7 +8,7 @@ import { TOOL_NAME, TOOL_DESCRIPTION, inputSchema, handleCodexExec } from "./too
 
 export function createServer(cwd: string): Server {
   const server = new Server(
-    { name: "codex-bridge", version: "0.1.0" },
+    { name: "skill-codex", version: "0.2.0" },
     { capabilities: { tools: {} } },
   );
 
@@ -73,17 +73,17 @@ export async function startServer(): Promise<void> {
   const server = createServer(cwd);
   const transport = new StdioServerTransport();
 
-  process.stderr.write("[codex-bridge] MCP server starting...\n");
+  process.stderr.write("[skill-codex] MCP server starting...\n");
 
   await server.connect(transport);
 
-  process.stderr.write("[codex-bridge] MCP server connected via stdio\n");
+  process.stderr.write("[skill-codex] MCP server connected via stdio\n");
 
   process.on("uncaughtException", (err) => {
-    process.stderr.write(`[codex-bridge] Uncaught exception: ${err.message}\n`);
+    process.stderr.write(`[skill-codex] Uncaught exception: ${err.message}\n`);
   });
 
   process.on("unhandledRejection", (reason) => {
-    process.stderr.write(`[codex-bridge] Unhandled rejection: ${String(reason)}\n`);
+    process.stderr.write(`[skill-codex] Unhandled rejection: ${String(reason)}\n`);
   });
 }

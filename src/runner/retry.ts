@@ -47,7 +47,7 @@ export async function withRetry<T>(
       if (attempt < maxRetries && isRetryable) {
         const delay = getDelay(attempt);
         process.stderr.write(
-          `[codex-bridge] Transient error (attempt ${attempt + 1}/${maxRetries}), retrying in ${delay}ms...\n`,
+          `[skill-codex] Transient error (attempt ${attempt + 1}/${maxRetries}), retrying in ${delay}ms...\n`,
         );
         await sleep(delay);
         continue;

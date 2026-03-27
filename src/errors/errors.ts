@@ -46,7 +46,7 @@ export class RecursionLimitError extends BridgeError {
 export class LockConflictError extends BridgeError {
   constructor(pid: number) {
     super(
-      `Another codex-bridge instance is running (PID ${pid}). Wait for it to finish or delete the lock file.`,
+      `Another skill-codex instance is running (PID ${pid}). Wait for it to finish or delete the lock file.`,
       "LOCK_CONFLICT",
       false,
     );
@@ -57,7 +57,7 @@ export class LockConflictError extends BridgeError {
 export class TimeoutError extends BridgeError {
   constructor(timeoutMs: number) {
     super(
-      `Codex timed out after ${Math.round(timeoutMs / 1000)}s. Increase CODEX_BRIDGE_TIMEOUT_MS if needed.`,
+      `Codex timed out after ${Math.round(timeoutMs / 1000)}s. Increase SKILL_CODEX_TIMEOUT_MS if needed.`,
       "TIMEOUT",
       true,
     );
@@ -123,7 +123,7 @@ export class NotGitRepoError extends BridgeError {
 export class ParseError extends BridgeError {
   constructor(detail: string = "") {
     super(
-      `Failed to parse Codex output${detail ? `: ${detail}` : ""}. The Codex CLI format may have changed — please update codex-bridge.`,
+      `Failed to parse Codex output${detail ? `: ${detail}` : ""}. The Codex CLI format may have changed — please update skill-codex.`,
       "PARSE_ERROR",
       false,
     );
