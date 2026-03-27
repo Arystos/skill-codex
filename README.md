@@ -1,6 +1,7 @@
 # skill-codex
 
-![npm](https://img.shields.io/npm/v/skill-codex)
+[![npm version](https://img.shields.io/npm/v/skill-codex)](https://www.npmjs.com/package/skill-codex)
+[![npm downloads](https://img.shields.io/npm/dm/skill-codex)](https://www.npmjs.com/package/skill-codex)
 ![CI](https://github.com/Arystos/skill-codex/actions/workflows/ci.yml/badge.svg)
 ![Windows](https://img.shields.io/badge/Windows-0078D4?style=flat&logo=windows&logoColor=white)
 ![macOS](https://img.shields.io/badge/macOS-000000?style=flat&logo=apple&logoColor=white)
@@ -31,12 +32,14 @@ Claude Code and Codex CLI have different strengths. Claude excels at reasoning, 
 ## Quick Start
 
 ```shell
-# 1. Install and configure everything in one command
+# Option A: Run directly (no global install)
 npx skill-codex setup
 
-# 2. Restart Claude Code to load the MCP server
+# Option B: Install globally, then setup
+npm i -g skill-codex
+skill-codex setup
 
-# 3. Use the commands in any project
+# Restart Claude Code to load the MCP server, then use:
 /codex-review              # Review uncommitted changes
 /codex-do "write tests"    # Delegate a task to Codex
 /codex-consult "approach?" # Get a second opinion
@@ -115,7 +118,7 @@ Environment variables (all optional):
 | Auth expired | Advises `codex login`, no retry |
 | Network down | Retries 3x with exponential backoff |
 | Rate limited (429) | Retries with backoff + jitter |
-| Codex hangs | Killed after timeout (SIGTERM then SIGKILL) |
+| Codex hangs | Killed after timeout (SIGTERM+SIGKILL on Unix, immediate kill on Windows) |
 | Concurrent runs | Lock file prevents conflicts (stale after 15min) |
 | Recursive calls | `SKILL_CODEX_DEPTH` limit prevents infinite loops |
 | Trivial changes | Smart filter skips auto-review |

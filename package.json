@@ -12,7 +12,7 @@
     }
   },
   "bin": {
-    "skill-codex": "./dist/bin/skill-codex.js"
+    "skill-codex": "dist/bin/skill-codex.js"
   },
   "scripts": {
     "build": "tsup",
