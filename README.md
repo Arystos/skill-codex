@@ -69,25 +69,22 @@ The MCP server spawns `codex exec` as a subprocess, using your logged-in Codex s
 
 After significant code changes (3+ files, 100+ lines, security-related paths), the PostToolUse hook suggests running `/codex-review`. Trivial changes (docs-only, < 5 lines, whitespace) are skipped to preserve your Codex quota.
 
-### Example: `/codex-review`
+### Example Output
+
+When Codex runs, the MCP tool returns a structured plain-text response:
 
 ```
-> /codex-review
-
-Reviewing uncommitted changes (3 files, ~85 lines)...
-
-Codex found 2 issues:
+[read-only │ D:\myproject │ 21538 tok in (15744 cached) → 129 out]
+  ✔ exec: powershell -Command 'git diff --cached'  (ok)
 
 CRITICAL — src/auth/login.ts:42
 Password comparison uses == instead of timing-safe comparison.
-Claude's assessment: Agree. Use crypto.timingSafeEqual() instead.
 
 MEDIUM — src/api/routes.ts:18
 Missing rate limiting on login endpoint.
-Claude's assessment: Agree. Add rate limiter middleware.
-
-Shall I fix these issues?
 ```
+
+The first line shows mode, working directory, and token usage. Activity lines show commands Codex executed (with status icons: ✔ ok, ✘ blocked/failed). The response content follows after a blank line.
 
 ## Configuration
 
@@ -179,7 +176,7 @@ Restart Claude Code after running setup. The MCP server only loads on startup.
 Increase the timeout: `export SKILL_CODEX_TIMEOUT_MS=1200000` (20 min). Large codebases can take longer.
 
 **"Auth expired" but Codex works in another terminal**
-The MCP server runs in its own process. Run `codex login` and restart Claude Code.
+The MCP server runs in its own process. Run `codex login` and restart Claude Code. On Windows, the auth pre-check is skipped automatically (PowerShell profile errors can cause false negatives); auth is still verified when Codex actually runs.
 
 **Lock file blocking runs**
 If a previous run crashed, a stale `.skill-codex.lock` may remain. It auto-cleans after 15 minutes, or delete it manually.
