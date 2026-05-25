@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { BRIDGE_DEPTH_ENV, DEFAULT_TIMEOUT_MS, TIMEOUT_ENV } from "../config/constants.js";
 import { getNextDepth } from "../guards/check-recursion.js";
 import { getCachedBinaryPath } from "../guards/check-binary.js";
+import { getSandboxConfigArgs } from "./sandbox-args.js";
 import { setupTimeout } from "./timeout.js";
 import { parseCodexOutput, type CodexResult } from "./output-parser.js";
 import {
@@ -74,6 +75,10 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
     } else {
       args.push("--sandbox", "read-only");
     }
+
+    // Platform-specific sandbox config (e.g. windows.sandbox=unelevated to work
+    // around Codex's broken elevated Windows sandbox). Empty on non-Windows.
+    args.push(...getSandboxConfigArgs());
 
     // Prompt passed via stdin to avoid shell injection — NOT as a positional arg
     const stdinPrompt = params.prompt;

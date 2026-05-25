@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2026-05-25
+
+### Fixed
+- **Windows sandbox spawn failure:** on Windows, Codex's default *elevated* sandbox fails to spawn shell processes with `windows sandbox failed: spawn setup refresh` ([openai/codex#24098](https://github.com/openai/codex/issues/24098), [#24259](https://github.com/openai/codex/issues/24259)), which blocked every command — including read-only review and consult runs. The runner now pins `windows.sandbox=unelevated` on Windows, which spawns reliably. Override via the new `SKILL_CODEX_WINDOWS_SANDBOX` env var (`unelevated` default, set `elevated` to opt back in).
+
 ## [0.4.0] - 2026-05-25
 
 ### Added

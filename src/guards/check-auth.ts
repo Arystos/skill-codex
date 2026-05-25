@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { AuthExpiredError, NetworkError, CliNotFoundError } from "../errors/errors.js";
 import { getCachedBinaryPath } from "./check-binary.js";
+import { getSandboxConfigArgs } from "../runner/sandbox-args.js";
 
 const AUTH_CACHE_TTL_MS = 60_000;
 
@@ -22,7 +23,7 @@ export async function checkAuth(): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = execFile(
       binary,
-      ["exec", "--sandbox", "read-only", "--skip-git-repo-check", "--ephemeral", "echo ok"],
+      ["exec", "--sandbox", "read-only", ...getSandboxConfigArgs(), "--skip-git-repo-check", "--ephemeral", "echo ok"],
       { timeout: 30_000, shell: process.platform === "win32" },
       (error, _stdout, stderr) => {
         if (!error) {

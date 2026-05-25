@@ -101,6 +101,7 @@ Environment variables (all optional):
 | `SKILL_CODEX_TIMEOUT_MS` | `600000` (10 min) | Subprocess timeout |
 | `SKILL_CODEX_MAX_RETRIES` | `3` | Retry count for transient errors |
 | `SKILL_CODEX_DEBUG` | -- | Enable debug logging to stderr |
+| `SKILL_CODEX_WINDOWS_SANDBOX` | `unelevated` | Windows only — Codex `windows.sandbox` mode (`unelevated`/`elevated`) |
 
 ### Smart Filter Thresholds
 
@@ -188,6 +189,9 @@ The MCP server runs in its own process. Run `codex login` and restart Claude Cod
 
 **Lock file blocking runs**
 If a previous run crashed, a stale `.skill-codex.lock` may remain. It auto-cleans after 15 minutes, or delete it manually.
+
+**Windows: "windows sandbox failed: spawn setup refresh" / Codex commands all blocked**
+Codex's default *elevated* Windows sandbox fails to spawn shells on many setups ([openai/codex#24098](https://github.com/openai/codex/issues/24098), [#24259](https://github.com/openai/codex/issues/24259)). skill-codex works around this by pinning `windows.sandbox=unelevated`, which spawns reliably. If your machine needs the elevated sandbox instead, set `SKILL_CODEX_WINDOWS_SANDBOX=elevated`.
 
 ## Inspired By
 

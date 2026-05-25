@@ -4,7 +4,7 @@ description: Delegates bounded implementation work to OpenAI Codex via the codex
 license: MIT
 metadata:
   author: Arystos
-  version: 0.4.0
+  version: 0.4.1
   mcp-server: skill-codex
   category: developer-tools
 ---

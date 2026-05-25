@@ -128,6 +128,24 @@ describe("execCodex", () => {
     expect(args).not.toContain("read-only");
   });
 
+  it("injects windows.sandbox=unelevated config when running on Windows", async () => {
+    const original = Object.getOwnPropertyDescriptor(process, "platform");
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    try {
+      const validOutput = JSON.stringify({ type: "result", content: "ok" }) + "\n";
+      const proc = makeMockProcess({ stdoutData: validOutput });
+      mockSpawn.mockReturnValue(proc as any);
+
+      await execCodex({ prompt: "review", cwd: "/tmp", mode: "exec" });
+
+      const [_bin, args] = mockSpawn.mock.calls[0];
+      expect(args).toContain("-c");
+      expect(args).toContain("windows.sandbox=unelevated");
+    } finally {
+      if (original) Object.defineProperty(process, "platform", original);
+    }
+  });
+
   it("writes prompt to stdin", async () => {
     const validOutput = JSON.stringify({ type: "result", content: "ok" }) + "\n";
     const proc = makeMockProcess({ stdoutData: validOutput });

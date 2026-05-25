@@ -25,6 +25,13 @@ export const CONFIG_ONLY_FILES = [".gitignore", ".eslintrc", ".prettierrc", ".ed
 
 export const DEBUG_ENV = "SKILL_CODEX_DEBUG";
 
+// Codex's default ("elevated") Windows sandbox fails to spawn shells with
+// "windows sandbox: spawn setup refresh" on many setups (openai/codex#24098,
+// #24259). The "unelevated" sandbox spawns reliably, so we pin to it on Windows.
+// Override with SKILL_CODEX_WINDOWS_SANDBOX=elevated if a machine needs it.
+export const WINDOWS_SANDBOX_ENV = "SKILL_CODEX_WINDOWS_SANDBOX";
+export const WINDOWS_SANDBOX_DEFAULT = "unelevated";
+
 export const TRANSIENT_PATTERNS = [
   "rate limit", "too many requests", "429",
   "500", "502", "503", "504",
