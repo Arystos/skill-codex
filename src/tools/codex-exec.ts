@@ -46,9 +46,14 @@ function formatRichResponse(
   const metaParts: string[] = [modeLabel, cwd];
 
   if (result.usage) {
-    const { input_tokens: inp, output_tokens: out, cached_input_tokens: cached } = result.usage;
+    const {
+      input_tokens: inp,
+      output_tokens: out,
+      cached_input_tokens: cached,
+      reasoning_output_tokens: reasoning,
+    } = result.usage;
     metaParts.push(
-      `${inp} tok in${cached > 0 ? ` (${cached} cached)` : ""} \u2192 ${out} out`,
+      `${inp} tok in${cached > 0 ? ` (${cached} cached)` : ""} \u2192 ${out} out${reasoning > 0 ? ` (+${reasoning} reasoning)` : ""}`,
     );
   }
 

@@ -13,6 +13,7 @@ export interface TokenUsage {
   readonly input_tokens: number;
   readonly cached_input_tokens: number;
   readonly output_tokens: number;
+  readonly reasoning_output_tokens: number;
 }
 
 export interface CodexResult {
@@ -43,6 +44,7 @@ export function parseCodexOutput(raw: string): CodexResult {
           input_tokens: parsed.usage.input_tokens ?? 0,
           cached_input_tokens: parsed.usage.cached_input_tokens ?? 0,
           output_tokens: parsed.usage.output_tokens ?? 0,
+          reasoning_output_tokens: parsed.usage.reasoning_output_tokens ?? 0,
         };
         continue;
       }
@@ -94,8 +96,15 @@ export function parseCodexOutput(raw: string): CodexResult {
         continue;
       }
 
-      // Handle nested item format (Codex JSONL)
-      if (parsed.item?.type === "agent_message" && typeof parsed.item.text === "string") {
+      // Handle nested item format (Codex JSONL). The current schema emits the
+      // final text on `item.completed`; skip `item.started`/`item.updated`
+      // partials so streamed chunks aren't double-counted.
+      if (
+        parsed.item?.type === "agent_message" &&
+        typeof parsed.item.text === "string" &&
+        parsed.type !== "item.started" &&
+        parsed.type !== "item.updated"
+      ) {
         messages.push(parsed.item.text);
         continue;
       }
@@ -117,7 +126,7 @@ export function parseCodexOutput(raw: string): CodexResult {
         continue;
       }
 
-      // Track file writes/edits
+      // Track file writes/edits (legacy item types, retained for back-compat)
       if (parsed.item?.type === "file_write" || parsed.item?.type === "file_edit") {
         activity.push({
           type: "write",
@@ -125,6 +134,30 @@ export function parseCodexOutput(raw: string): CodexResult {
           icon: "\u270E",
           status: "write",
         });
+        continue;
+      }
+
+      // Current schema collapses file activity into a single `file_change` item.
+      // It may carry a top-level `path` or a `changes` array of { path, kind }.
+      if (parsed.item?.type === "file_change") {
+        const changes = Array.isArray(parsed.item.changes) ? parsed.item.changes : null;
+        if (changes && changes.length > 0) {
+          for (const change of changes) {
+            activity.push({
+              type: "write",
+              path: change?.path || "file",
+              icon: "\u270E",
+              status: change?.kind || "write",
+            });
+          }
+        } else {
+          activity.push({
+            type: "write",
+            path: parsed.item.path || "file",
+            icon: "\u270E",
+            status: "write",
+          });
+        }
         continue;
       }
     } catch {

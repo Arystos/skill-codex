@@ -65,8 +65,12 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
     const timeoutMs = getTimeout(params.timeoutMs);
     const args: string[] = ["exec", "--json", "--skip-git-repo-check"];
 
+    // `--full-auto` was deprecated in Codex ~v0.131 (hidden alias that prints a
+    // warning). `--sandbox workspace-write` is the documented replacement; in
+    // non-interactive `exec` there are no approval prompts, so it matches the
+    // old full-auto write behavior.
     if (params.mode === "full-auto") {
-      args.push("--full-auto");
+      args.push("--sandbox", "workspace-write");
     } else {
       args.push("--sandbox", "read-only");
     }

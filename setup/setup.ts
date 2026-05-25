@@ -3,6 +3,7 @@ import path from "node:path";
 import { installMcp } from "./install-mcp.js";
 import { installCommands } from "./install-commands.js";
 import { installHook } from "./install-hook.js";
+import { installSkill, uninstallSkill } from "./install-skill.js";
 import { runVerification } from "./verify.js";
 import {
   getGlobalMcpConfigPath,
@@ -32,7 +33,12 @@ export async function runSetup(options: { force?: boolean } = {}): Promise<boole
   const hookResult = installHook();
   log(hookResult.installed ? "[ok]" : "[--]", hookResult.message);
 
-  // Step 4: Verify
+  // Step 4: Install Agent Skill (auto-trigger discovery)
+  log("  ", "Installing agent skill...");
+  const skillResult = installSkill();
+  log(skillResult.installed ? "[ok]" : "[--]", skillResult.message);
+
+  // Step 5: Verify
   log("\n  ", "Verifying installation...\n");
   const verification = await runVerification();
 
@@ -49,6 +55,8 @@ export async function runSetup(options: { force?: boolean } = {}): Promise<boole
     log("  ", "  /codex-review    - Code review by Codex");
     log("  ", "  /codex-do        - Delegate a task to Codex");
     log("  ", "  /codex-consult   - Get a second opinion from Codex");
+    log("", "");
+    log("  ", "Agent skill installed: codex-bridge (auto-triggers on implementation/review requests)");
     log("", "");
     log("  ", "Tip: Add .skill-codex.lock to your .gitignore");
   } else {
@@ -91,7 +99,15 @@ export async function runUninstall(): Promise<void> {
     }
   }
 
-  // Step 3: Remove PostToolUse hook from ~/.claude/settings.json
+  // Step 3: Remove agent skill from ~/.claude/skills/codex-bridge
+  const skillUninstall = uninstallSkill();
+  if (skillUninstall.removed) {
+    log("[ok]", `Removed skill: ${skillUninstall.targetDir}`);
+  } else {
+    log("[--]", "Agent skill not found");
+  }
+
+  // Step 4: Remove PostToolUse hook from ~/.claude/settings.json
   const settingsPath = getClaudeSettingsPath();
   try {
     const raw = fs.readFileSync(settingsPath, "utf-8");

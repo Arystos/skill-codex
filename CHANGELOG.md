@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-05-25
+
+### Added
+- **`codex-bridge` agent skill** (`skills/codex-bridge/SKILL.md`): auto-triggers on implementation, review, and consult requests so Claude reaches for Codex without an explicit slash command. Installed to `~/.claude/skills/` by setup and removed by uninstall.
+- Setup/verify now install and check the agent skill; `skills/` added to the published npm package.
+- Output parser captures `reasoning_output_tokens` from `turn.completed` usage and surfaces it in the response header.
+- Output parser handles the current `file_change` item type (top-level `path` or a `changes[]` array), restoring file-activity tracking.
+
+### Fixed
+- **Codex CLI compatibility:** replaced the deprecated `--full-auto` flag with `--sandbox workspace-write` (Codex ~v0.131 made `--full-auto` a hidden alias that prints a deprecation warning). `mode: "full-auto"` on the `codex_exec` tool is unchanged.
+- Output parser ignores `agent_message` text on `item.started`/`item.updated` partials, preventing double-counted/garbled output when Codex streams.
+
+## [0.3.0] - 2026-04
+
+### Added
+- Parse activity events (`command_execution`, `file_read`, `file_write`) and token usage from the Codex JSON stream.
+- Rich plain-text response: metadata header (mode, cwd, token usage), activity log, and content.
+
+### Changed
+- `spawn`/`execFile` use `shell: true` on Windows for npm `.cmd` shim support.
+- Auth pre-check skipped on Windows (PowerShell profile errors cause false negatives); auth still verified when Codex runs.
+- Auth check timeout raised from 15s to 30s.
+
 ## [0.2.0] - 2026-03-27
 
 ### Changed

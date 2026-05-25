@@ -114,7 +114,7 @@ describe("execCodex", () => {
     expect(args).toContain("-");
   });
 
-  it("passes --full-auto for full-auto mode", async () => {
+  it("passes --sandbox workspace-write for full-auto mode (not deprecated --full-auto)", async () => {
     const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as any);
@@ -122,8 +122,9 @@ describe("execCodex", () => {
     await execCodex({ prompt: "do it", cwd: "/tmp", mode: "full-auto" });
 
     const [_bin, args] = mockSpawn.mock.calls[0];
-    expect(args).toContain("--full-auto");
-    expect(args).not.toContain("--sandbox");
+    expect(args).toContain("--sandbox");
+    expect(args).toContain("workspace-write");
+    expect(args).not.toContain("--full-auto");
     expect(args).not.toContain("read-only");
   });
 

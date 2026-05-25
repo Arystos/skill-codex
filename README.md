@@ -19,6 +19,7 @@ Claude Code and Codex CLI have different strengths. Claude excels at reasoning, 
 * **`/codex-review`** -- Have Codex review your current changes as a second reviewer
 * **`/codex-do`** -- Delegate well-scoped implementation tasks to Codex
 * **`/codex-consult`** -- Get a second opinion on architecture or design decisions
+* **`codex-bridge` agent skill** -- Auto-triggers on implementation/review/consult requests so Claude reaches for Codex without an explicit slash command
 * **Auto-review hook** -- Smart PostToolUse hook suggests review after significant changes
 * **Subscription-first** -- Works with `codex login`, no `OPENAI_API_KEY` needed
 * **Edge case handling** -- Retry logic, timeout, anti-recursion, lock files, pre-flight checks
@@ -49,7 +50,8 @@ The setup command:
 1. Registers the MCP server in your Claude Code config (`~/.claude.json`)
 2. Installs slash commands globally (`~/.claude/commands/`)
 3. Configures the auto-review PostToolUse hook
-4. Verifies everything works
+4. Installs the `codex-bridge` agent skill (`~/.claude/skills/`)
+5. Verifies everything works
 
 > **Tip:** Add `.skill-codex.lock` to your `.gitignore`
 
@@ -58,9 +60,9 @@ The setup command:
 ```
 You in Claude Code
   |
-  |-- /codex-review        --> MCP tool --> codex exec (read-only) --> review findings
-  |-- /codex-do "task"     --> MCP tool --> codex exec --full-auto --> reviewed output
-  +-- /codex-consult "q"   --> MCP tool --> codex exec (read-only) --> synthesized opinion
+  |-- /codex-review        --> MCP tool --> codex exec --sandbox read-only       --> review findings
+  |-- /codex-do "task"     --> MCP tool --> codex exec --sandbox workspace-write --> reviewed output
+  +-- /codex-consult "q"   --> MCP tool --> codex exec --sandbox read-only       --> synthesized opinion
 ```
 
 The MCP server spawns `codex exec` as a subprocess, using your logged-in Codex session. Claude sees the output and critically evaluates it -- **Codex is treated as a peer, not an authority**.
@@ -68,6 +70,10 @@ The MCP server spawns `codex exec` as a subprocess, using your logged-in Codex s
 ### Auto-review
 
 After significant code changes (3+ files, 100+ lines, security-related paths), the PostToolUse hook suggests running `/codex-review`. Trivial changes (docs-only, < 5 lines, whitespace) are skipped to preserve your Codex quota.
+
+### Agent skill (auto-trigger)
+
+The slash commands are explicit, on-demand entry points. The `codex-bridge` agent skill is the implicit one: it installs to `~/.claude/skills/` and Claude loads it automatically when your request matches a delegation, review, or consult pattern (e.g. "implement X", "generate tests for", "review this diff", "second opinion on this approach"). It maps the same three workflows -- delegate, review, consult -- onto the `codex_exec` tool, so you get Codex collaboration without remembering a command. Trivial tasks (< 50 lines, faster done directly) are explicitly out of scope.
 
 ### Example Output
 
@@ -143,6 +149,8 @@ skill-codex/
 |-- hooks/
 |   |-- post-tool-use-review.sh   # Auto-review hook (macOS/Linux)
 |   +-- post-tool-use-review.ps1  # Auto-review hook (Windows)
+|-- skills/
+|   +-- codex-bridge/SKILL.md # Agent skill (auto-triggers delegation/review/consult)
 |-- setup/                    # npx skill-codex setup installer
 |-- bin/                      # CLI entry point
 +-- __tests__/                # vitest test suite

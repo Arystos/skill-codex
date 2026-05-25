@@ -1,6 +1,11 @@
 import fs from "node:fs";
+import path from "node:path";
 import which from "which";
-import { getGlobalMcpConfigPath, getGlobalCommandsDir } from "../src/config/paths.js";
+import {
+  getGlobalMcpConfigPath,
+  getGlobalCommandsDir,
+  getGlobalSkillsDir,
+} from "../src/config/paths.js";
 
 interface CheckResult {
   readonly name: string;
@@ -62,6 +67,15 @@ export async function runVerification(): Promise<{
     detail: missingCommands.length === 0
       ? `All 3 commands in ${commandsDir}`
       : `Missing: ${missingCommands.join(", ")}`,
+  });
+
+  // 5. Agent skill installed
+  const skillFile = path.join(getGlobalSkillsDir(), "codex-bridge", "SKILL.md");
+  const skillInstalled = fs.existsSync(skillFile);
+  results.push({
+    name: "Agent skill installed",
+    pass: skillInstalled,
+    detail: skillInstalled ? skillFile : `Not found at ${skillFile}`,
   });
 
   return {

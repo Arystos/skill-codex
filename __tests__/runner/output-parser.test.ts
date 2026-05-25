@@ -90,4 +90,59 @@ describe("parseCodexOutput", () => {
     const result = parseCodexOutput(jsonl);
     expect(result.raw).toBe(jsonl);
   });
+
+  it("captures reasoning_output_tokens from turn.completed usage", () => {
+    const jsonl = [
+      '{"type":"turn.completed","usage":{"input_tokens":100,"cached_input_tokens":40,"output_tokens":20,"reasoning_output_tokens":15}}',
+      '{"type":"item.completed","item":{"type":"agent_message","text":"done"}}',
+    ].join("\n");
+    const result = parseCodexOutput(jsonl);
+    expect(result.usage).toEqual({
+      input_tokens: 100,
+      cached_input_tokens: 40,
+      output_tokens: 20,
+      reasoning_output_tokens: 15,
+    });
+  });
+
+  it("defaults reasoning_output_tokens to 0 when absent", () => {
+    const jsonl = [
+      '{"type":"turn.completed","usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}',
+      '{"type":"item.completed","item":{"type":"agent_message","text":"done"}}',
+    ].join("\n");
+    const result = parseCodexOutput(jsonl);
+    expect(result.usage?.reasoning_output_tokens).toBe(0);
+  });
+
+  it("records file_change activity from a top-level path", () => {
+    const jsonl = [
+      '{"type":"item.completed","item":{"type":"file_change","path":"src/foo.ts"}}',
+      '{"type":"item.completed","item":{"type":"agent_message","text":"edited"}}',
+    ].join("\n");
+    const result = parseCodexOutput(jsonl);
+    expect(result.activity).toContainEqual(
+      expect.objectContaining({ type: "write", path: "src/foo.ts" }),
+    );
+  });
+
+  it("records file_change activity from a changes array", () => {
+    const jsonl =
+      '{"type":"item.completed","item":{"type":"file_change","changes":[{"path":"a.ts","kind":"modified"},{"path":"b.ts","kind":"added"}]}}\n' +
+      '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}';
+    const result = parseCodexOutput(jsonl);
+    const writes = result.activity.filter((a) => a.type === "write");
+    expect(writes).toHaveLength(2);
+    expect(writes.map((w) => w.path)).toEqual(["a.ts", "b.ts"]);
+  });
+
+  it("ignores agent_message text on item.started/item.updated partials", () => {
+    const jsonl = [
+      '{"type":"item.started","item":{"type":"agent_message","text":"partial"}}',
+      '{"type":"item.updated","item":{"type":"agent_message","text":"partial more"}}',
+      '{"type":"item.completed","item":{"type":"agent_message","text":"final answer"}}',
+    ].join("\n");
+    const result = parseCodexOutput(jsonl);
+    expect(result.content).toBe("final answer");
+    expect(result.content).not.toContain("partial");
+  });
 });
