@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-06-15
+
+### Added
+- **Live progress streaming:** the `codex_exec` tool now emits MCP `notifications/progress` as Codex works — `thinking…`, `running: <cmd>`, `ran:`/`blocked:`/`failed:`, file edits, `writing response…`, and a `Codex working… Ns elapsed` heartbeat every 10s. A long Codex run no longer looks frozen in the Claude UI. (Progress is sent only when the client supplies a `progressToken`.)
+- **Recovered live file log** (`.skill-codex.log`): a tail-able, human-readable per-run log of Codex's JSONL activity, written incrementally so a buffered run can be watched in real time. Path overridable via `SKILL_CODEX_LOG`. *(This feature previously existed only in a compiled build and was never committed to source; it is now restored and tested.)*
+- Final response header now includes the run's elapsed wall-clock time.
+
+### Changed
+- **Default timeout lowered from 10 min to 5 min** (`SKILL_CODEX_TIMEOUT_MS`, still per-call overridable via `timeoutMs`). With live progress, a genuinely stuck run is now distinguishable from a slow one.
+- Server now reports its actual package version over MCP (was pinned to `0.2.0`).
+
 ## [0.4.1] - 2026-05-25
 
 ### Fixed

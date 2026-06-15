@@ -186,6 +186,39 @@ describe("execCodex", () => {
     ).rejects.toThrow(AuthExpiredError);
   });
 
+  it("emits progress messages from stdout JSONL events and attaches logPath/durationMs", async () => {
+    const out =
+      JSON.stringify({ type: "item.started", item: { type: "command_execution", command: "git status", status: "in_progress" } }) +
+      "\n" +
+      JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: "All good" } }) +
+      "\n" +
+      JSON.stringify({ type: "turn.completed", usage: { input_tokens: 1, output_tokens: 1 } }) +
+      "\n";
+    const proc = makeMockProcess({ stdoutData: out });
+    mockSpawn.mockReturnValue(proc as any);
+
+    const progress: string[] = [];
+    const result = await execCodex({
+      prompt: "check",
+      cwd: "/tmp",
+      mode: "exec",
+      onProgress: (m) => progress.push(m),
+    });
+
+    expect(progress).toContain("running: git status");
+    expect(progress).toContain("writing response…");
+    expect(typeof result.logPath).toBe("string");
+    expect(typeof result.durationMs).toBe("number");
+  });
+
+  it("does not call onProgress when none is provided (no throw)", async () => {
+    const validOutput = JSON.stringify({ type: "result", content: "ok" }) + "\n";
+    const proc = makeMockProcess({ stdoutData: validOutput });
+    mockSpawn.mockReturnValue(proc as any);
+
+    await expect(execCodex({ prompt: "x", cwd: "/tmp", mode: "exec" })).resolves.toBeDefined();
+  });
+
   it("uses cached binary path when spawning", async () => {
     mockGetCachedBinaryPath.mockReturnValue("/opt/bin/codex");
     const validOutput = JSON.stringify({ type: "result", content: "ok" }) + "\n";

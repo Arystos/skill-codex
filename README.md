@@ -21,6 +21,7 @@ Claude Code and Codex CLI have different strengths. Claude excels at reasoning, 
 * **`/codex-consult`** -- Get a second opinion on architecture or design decisions
 * **`codex-bridge` agent skill** -- Auto-triggers on implementation/review/consult requests so Claude reaches for Codex without an explicit slash command
 * **Auto-review hook** -- Smart PostToolUse hook suggests review after significant changes
+* **Live progress** -- Streams Codex's activity (running commands, file edits, elapsed time) as MCP progress so long runs never look frozen; also mirrored to a tail-able `.skill-codex.log`
 * **Subscription-first** -- Works with `codex login`, no `OPENAI_API_KEY` needed
 * **Edge case handling** -- Retry logic, timeout, anti-recursion, lock files, pre-flight checks
 
@@ -98,8 +99,9 @@ Environment variables (all optional):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SKILL_CODEX_TIMEOUT_MS` | `600000` (10 min) | Subprocess timeout |
+| `SKILL_CODEX_TIMEOUT_MS` | `300000` (5 min) | Subprocess timeout |
 | `SKILL_CODEX_MAX_RETRIES` | `3` | Retry count for transient errors |
+| `SKILL_CODEX_LOG` | `<cwd>/.skill-codex.log` | Path to the live, tail-able per-run log |
 | `SKILL_CODEX_DEBUG` | -- | Enable debug logging to stderr |
 | `SKILL_CODEX_WINDOWS_SANDBOX` | `unelevated` | Windows only — Codex `windows.sandbox` mode (`unelevated`/`elevated`) |
 

@@ -1,6 +1,7 @@
 node_modules/
 dist/
-.codex-bridge.lock
+.skill-codex.lock
+.skill-codex.log
 *.tsbuildinfo
 coverage/
 .env

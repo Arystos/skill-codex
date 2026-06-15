@@ -21,6 +21,10 @@ export interface CodexResult {
   readonly activity: ActivityEntry[];
   readonly usage: TokenUsage | null;
   readonly raw: string;
+  /** Path to the live run log, attached by execCodex. */
+  readonly logPath?: string;
+  /** Wall-clock duration of the Codex run in ms, attached by execCodex. */
+  readonly durationMs?: number;
 }
 
 export function parseCodexOutput(raw: string): CodexResult {

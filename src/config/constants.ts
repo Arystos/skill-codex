@@ -1,9 +1,12 @@
 export const MAX_BRIDGE_DEPTH = 2;
 export const BRIDGE_DEPTH_ENV = "SKILL_CODEX_DEPTH";
 
-export const DEFAULT_TIMEOUT_MS = 600_000; // 10 minutes
+export const DEFAULT_TIMEOUT_MS = 300_000; // 5 minutes (override via SKILL_CODEX_TIMEOUT_MS or per-call timeoutMs)
 export const TIMEOUT_ENV = "SKILL_CODEX_TIMEOUT_MS";
 export const KILL_GRACE_MS = 5_000;
+
+/** How often to emit a heartbeat progress message during quiet stretches. */
+export const HEARTBEAT_INTERVAL_MS = 10_000;
 
 export const MAX_RETRIES = 3;
 export const MAX_RETRIES_ENV = "SKILL_CODEX_MAX_RETRIES";
@@ -14,6 +17,12 @@ export const MAX_RESPONSE_CHARS = 80_000;
 
 export const LOCK_STALE_MS = 900_000; // 15 minutes
 export const LOCK_FILENAME = ".skill-codex.lock";
+
+// Live, human-readable per-run log. Codex emits JSONL that the MCP transport
+// buffers until completion; tailing this file shows progress in real time.
+// Override the location (absolute path) with SKILL_CODEX_LOG.
+export const LOG_FILENAME = ".skill-codex.log";
+export const LOG_ENV = "SKILL_CODEX_LOG";
 
 export const TRIVIAL_DIFF_THRESHOLD = 5; // lines
 export const DOCS_ONLY_EXTENSIONS = [".md", ".txt", ".rst", ".adoc"];

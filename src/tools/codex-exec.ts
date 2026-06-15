@@ -45,6 +45,10 @@ function formatRichResponse(
   const modeLabel = input.mode === "full-auto" ? "full-auto" : "read-only";
   const metaParts: string[] = [modeLabel, cwd];
 
+  if (typeof result.durationMs === "number") {
+    metaParts.push(`${(result.durationMs / 1000).toFixed(1)}s`);
+  }
+
   if (result.usage) {
     const {
       input_tokens: inp,
@@ -58,6 +62,10 @@ function formatRichResponse(
   }
 
   lines.push(`[${metaParts.join(" \u2502 ")}]`);
+
+  if (result.logPath) {
+    lines.push(`  live log: ${result.logPath}`);
+  }
 
   if (result.activity.length > 0) {
     for (const a of result.activity) {
@@ -80,6 +88,7 @@ function formatRichResponse(
 export async function handleCodexExec(
   input: CodexExecInput,
   serverCwd: string,
+  onProgress?: (message: string) => void,
 ): Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean }> {
   const rawCwd = input.cwd ?? serverCwd;
   const cwd = path.resolve(rawCwd);
@@ -107,6 +116,7 @@ export async function handleCodexExec(
         cwd,
         mode: input.mode,
         timeoutMs: input.timeoutMs,
+        onProgress,
       }),
     );
 
