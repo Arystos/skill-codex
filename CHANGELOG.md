@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0] - 2026-06-19
+
+### Added
+- **Installable as a Claude Code plugin.** Added `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, a root `.mcp.json`, and `.claude-plugin/hooks/hooks.json` so the repo can be installed via `/plugin marketplace add Arystos/skill-codex` then `/plugin install skill-codex@skill-codex` — alongside the existing `npx skill-codex setup`.
+- **`skill-codex mcp` subcommand** that starts the MCP server over stdio. The plugin's `.mcp.json` launches the server with `npx -y skill-codex mcp`, so no built artifacts need to be committed.
+- Cross-platform Node PostToolUse hook (`hooks/post-tool-use-review.mjs`) used by the plugin install path.
+
 ## [0.7.1] - 2026-06-19
 
 ### Fixed

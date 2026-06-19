@@ -1,0 +1,23 @@
+{
+  "name": "skill-codex",
+  "owner": {
+    "name": "Arystos",
+    "url": "https://github.com/Arystos"
+  },
+  "plugins": [
+    {
+      "name": "skill-codex",
+      "source": "./",
+      "description": "Use OpenAI Codex from Claude Code for code review, task delegation, and second opinions via MCP — with your Codex subscription, no API key. Windows-native, live progress.",
+      "version": "0.8.0",
+      "author": {
+        "name": "Arystos",
+        "url": "https://github.com/Arystos"
+      },
+      "homepage": "https://github.com/Arystos/skill-codex",
+      "license": "MIT",
+      "keywords": ["codex", "code-review", "mcp", "developer-tools"],
+      "category": "development"
+    }
+  ]
+}

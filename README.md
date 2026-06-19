@@ -83,6 +83,17 @@ The setup command:
 
 > **Tip:** Add `.skill-codex.lock` to your `.gitignore`
 
+### Install as a Claude Code plugin (alternative)
+
+Instead of `npx skill-codex setup`, you can install it as a plugin:
+
+```shell
+/plugin marketplace add Arystos/skill-codex
+/plugin install skill-codex@skill-codex
+```
+
+The plugin bundles the MCP server (launched via `npx -y skill-codex mcp`), the slash commands, the agent skill, and the auto-review hook. Restart Claude Code after installing.
+
 ## How It Works
 
 ```
