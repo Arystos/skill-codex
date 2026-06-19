@@ -17,9 +17,9 @@ A cross-platform [Claude Code](https://code.claude.com) skill that integrates [O
 
 > **Two models rarely make the same mistake.** skill-codex lets Claude and Codex check each other's work -- Claude plans and builds fast, Codex reviews with fresh eyes -- from a single terminal, using the Codex subscription you already pay for. No API key, no second window, no copy-paste.
 
-<!-- Demo GIF: record a ~20s clip of `/codex-review` catching a real bug, save it to docs/demo.gif, then uncomment the next line:
-![skill-codex demo](docs/demo.gif)
--->
+![skill-codex: Claude approves its own diff; Codex, a different model, catches the bug and blocks it](docs/demo.svg)
+
+<!-- Static hero for now. To swap in an animated GIF later: record /codex-review with ScreenToGif, save as docs/demo.gif, and replace the line above. -->
 
 ## Why?
 
