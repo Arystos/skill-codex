@@ -74,6 +74,18 @@ A 20-second tour:
 
 ![model and effort demo](docs/demo-models.gif)
 
+**Session memory** -- pass the thread id back and Codex remembers across calls:
+
+![session memory demo](docs/demo-memory.gif)
+
+**Never frozen, never runaway** -- live progress plus timeout / anti-recursion / lock-file guards, Windows-native:
+
+![guardrails demo](docs/demo-robust.gif)
+
+**Auto-review hook** -- a nudge to run `/codex-review` after significant changes (trivial diffs are skipped):
+
+![auto-review hook demo](docs/demo-hook.gif)
+
 ## Prerequisites
 
 * [Node.js](https://nodejs.org) >= 18
