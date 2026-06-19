@@ -1,9 +1,18 @@
 import { spawn } from "node:child_process";
-import { BRIDGE_DEPTH_ENV, DEFAULT_TIMEOUT_MS, TIMEOUT_ENV } from "../config/constants.js";
+import { StringDecoder } from "node:string_decoder";
+import {
+  BRIDGE_DEPTH_ENV,
+  DEFAULT_TIMEOUT_MS,
+  TIMEOUT_ENV,
+  HEARTBEAT_INTERVAL_MS,
+} from "../config/constants.js";
 import { getNextDepth } from "../guards/check-recursion.js";
 import { getCachedBinaryPath } from "../guards/check-binary.js";
+import { getSandboxConfigArgs } from "./sandbox-args.js";
 import { setupTimeout } from "./timeout.js";
 import { parseCodexOutput, type CodexResult } from "./output-parser.js";
+import { formatProgressMessage } from "./progress.js";
+import { createLiveLogger } from "../util/live-logger.js";
 import {
   BridgeError,
   CliNotFoundError,
@@ -17,7 +26,16 @@ export interface ExecParams {
   readonly prompt: string;
   readonly cwd: string;
   readonly mode: "exec" | "full-auto";
+  readonly sandbox?: "read-only" | "workspace-write" | "danger-full-access";
+  readonly sessionId?: string;
   readonly timeoutMs?: number;
+  /**
+   * Optional live-progress sink. Called with a short status line each time
+   * Codex emits a meaningful JSONL event, plus a periodic heartbeat during
+   * quiet stretches. Used to drive MCP progress notifications so a long run
+   * doesn't look frozen. Best-effort — callbacks must not throw.
+   */
+  readonly onProgress?: (message: string) => void;
 }
 
 function getTimeout(override?: number): number {
@@ -63,13 +81,19 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
 
   return new Promise((resolve, reject) => {
     const timeoutMs = getTimeout(params.timeoutMs);
-    const args: string[] = ["exec", "--json", "--skip-git-repo-check"];
-
-    if (params.mode === "full-auto") {
-      args.push("--full-auto");
+    let args: string[];
+    if (params.sessionId) {
+      // Resume keeps the original session's sandbox policy; `resume` has no --sandbox flag.
+      args = ["exec", "resume", params.sessionId, "--json", "--skip-git-repo-check"];
     } else {
-      args.push("--sandbox", "read-only");
+      const sandbox =
+        params.sandbox ?? (params.mode === "full-auto" ? "workspace-write" : "read-only");
+      args = ["exec", "--json", "--skip-git-repo-check", "--sandbox", sandbox];
     }
+
+    // Platform-specific sandbox config (e.g. windows.sandbox=unelevated to work
+    // around Codex's broken elevated Windows sandbox). Empty on non-Windows.
+    args.push(...getSandboxConfigArgs());
 
     // Prompt passed via stdin to avoid shell injection — NOT as a positional arg
     const stdinPrompt = params.prompt;
@@ -93,11 +117,78 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
 
     const { clear: clearTimeout_, promise: timeoutPromise } = setupTimeout(child, timeoutMs);
 
+    const startedAt = Date.now();
+
+    // Persistent, tail-able per-run log (recovers progress the transport buffers).
+    const logger = createLiveLogger({
+      cwd: params.cwd,
+      mode: params.mode,
+      prompt: params.prompt,
+    });
+    process.stderr.write(`[skill-codex] live log: ${logger.path}\n`);
+
+    // Heartbeat so quiet reasoning stretches still show the run is alive.
+    let heartbeat: ReturnType<typeof setInterval> | null = null;
+    if (params.onProgress) {
+      heartbeat = setInterval(() => {
+        const secs = Math.round((Date.now() - startedAt) / 1000);
+        params.onProgress?.(`Codex working… ${secs}s elapsed`);
+      }, HEARTBEAT_INTERVAL_MS);
+      if (typeof heartbeat.unref === "function") heartbeat.unref();
+    }
+    const stopHeartbeat = (): void => {
+      if (heartbeat) {
+        clearInterval(heartbeat);
+        heartbeat = null;
+      }
+    };
+
+    // Incrementally decode stdout: feed the file logger, and emit a progress
+    // message per complete JSONL line.
+    const decoder = new StringDecoder("utf8");
+    let progressBuf = "";
+    const consumeForProgress = (text: string): void => {
+      if (!params.onProgress) return;
+      progressBuf += text;
+      let idx: number;
+      while ((idx = progressBuf.indexOf("\n")) >= 0) {
+        const lineStr = progressBuf.slice(0, idx).trim();
+        progressBuf = progressBuf.slice(idx + 1);
+        if (!lineStr) continue;
+        try {
+          const msg = formatProgressMessage(JSON.parse(lineStr));
+          if (msg) params.onProgress(msg);
+        } catch {
+          // non-JSON line — ignore
+        }
+      }
+    };
+
+    let logFinished = false;
+    const finishLog = (summary: string): void => {
+      stopHeartbeat();
+      if (logFinished) return;
+      logFinished = true;
+      try {
+        logger.write(decoder.end());
+        logger.finish(summary);
+      } catch {
+        // best-effort
+      }
+    };
+
     const stdoutChunks: Buffer[] = [];
     let stderr = "";
 
     child.stdout?.on("data", (chunk: Buffer) => {
       stdoutChunks.push(chunk);
+      const text = decoder.write(chunk);
+      try {
+        logger.write(text);
+      } catch {
+        // best-effort logging
+      }
+      consumeForProgress(text);
     });
 
     child.stderr?.on("data", (chunk: Buffer) => {
@@ -110,12 +201,13 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
 
     const onClose = (exitCode: number | null): void => {
       clearTimeout_();
+      finishLog(exitCode === 0 || exitCode === null ? "ok" : `exit ${exitCode}`);
       const stdout = Buffer.concat(stdoutChunks).toString();
 
       if (exitCode === 0 || exitCode === null) {
         try {
           const result = parseCodexOutput(stdout);
-          resolve(result);
+          resolve({ ...result, logPath: logger.path, durationMs: Date.now() - startedAt });
         } catch (err) {
           reject(err);
         }
@@ -129,6 +221,7 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
 
     child.on("error", (err: NodeJS.ErrnoException) => {
       clearTimeout_();
+      finishLog("spawn error");
       if (err.code === "ENOENT") {
         reject(new CliNotFoundError());
       } else {
@@ -138,6 +231,7 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
 
     // Race with timeout
     timeoutPromise.catch((err) => {
+      finishLog("timeout");
       reject(err);
     });
   });

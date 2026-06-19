@@ -2,6 +2,62 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-06-19
+
+### Added
+- **Explicit sandbox control** on `codex_exec`: a `sandbox` param (`read-only` | `workspace-write` | `danger-full-access`) that overrides the `mode` default and maps to `codex exec --sandbox`.
+- **Session memory**: a `sessionId` param resumes a prior Codex session via `codex exec resume <thread_id>`, so Codex retains context across calls. The thread id is captured from the `thread.started` event and surfaced in the response.
+- **Structured review verdict** (APPROVED / WARNING / BLOCKED) plus a bounded (≤3 round) fix → re-review loop in `/codex-review` and the `codex-bridge` agent skill, with Claude as the final judge.
+- `DISTRIBUTION.md` — a prioritized, evidence-backed distribution checklist.
+
+### Changed
+- **Live log** now defaults to a per-workspace file under the OS temp dir instead of `<cwd>/.skill-codex.log`, so a run no longer drops a growing untracked file into your working repo. `SKILL_CODEX_LOG` still overrides.
+- Review/delegate flows now run `git status --short` so they see newly-created files that `git diff` alone misses.
+- **Fail soft:** if Codex is unavailable (not installed, auth expired, offline), the review degrades to Claude-only instead of blocking the user.
+- CI now enforces the 80% coverage gate; the README leads with cross-model positioning and an honest comparison table.
+
+### Notes
+- Verified against `codex-cli` 0.133.0.
+
+## [0.5.0] - 2026-06-15
+
+### Added
+- **Live progress streaming:** the `codex_exec` tool now emits MCP `notifications/progress` as Codex works — `thinking…`, `running: <cmd>`, `ran:`/`blocked:`/`failed:`, file edits, `writing response…`, and a `Codex working… Ns elapsed` heartbeat every 10s. A long Codex run no longer looks frozen in the Claude UI. (Progress is sent only when the client supplies a `progressToken`.)
+- **Recovered live file log** (`.skill-codex.log`): a tail-able, human-readable per-run log of Codex's JSONL activity, written incrementally so a buffered run can be watched in real time. Path overridable via `SKILL_CODEX_LOG`. *(This feature previously existed only in a compiled build and was never committed to source; it is now restored and tested.)*
+- Final response header now includes the run's elapsed wall-clock time.
+
+### Changed
+- **Default timeout lowered from 10 min to 5 min** (`SKILL_CODEX_TIMEOUT_MS`, still per-call overridable via `timeoutMs`). With live progress, a genuinely stuck run is now distinguishable from a slow one.
+- Server now reports its actual package version over MCP (was pinned to `0.2.0`).
+
+## [0.4.1] - 2026-05-25
+
+### Fixed
+- **Windows sandbox spawn failure:** on Windows, Codex's default *elevated* sandbox fails to spawn shell processes with `windows sandbox failed: spawn setup refresh` ([openai/codex#24098](https://github.com/openai/codex/issues/24098), [#24259](https://github.com/openai/codex/issues/24259)), which blocked every command — including read-only review and consult runs. The runner now pins `windows.sandbox=unelevated` on Windows, which spawns reliably. Override via the new `SKILL_CODEX_WINDOWS_SANDBOX` env var (`unelevated` default, set `elevated` to opt back in).
+
+## [0.4.0] - 2026-05-25
+
+### Added
+- **`codex-bridge` agent skill** (`skills/codex-bridge/SKILL.md`): auto-triggers on implementation, review, and consult requests so Claude reaches for Codex without an explicit slash command. Installed to `~/.claude/skills/` by setup and removed by uninstall.
+- Setup/verify now install and check the agent skill; `skills/` added to the published npm package.
+- Output parser captures `reasoning_output_tokens` from `turn.completed` usage and surfaces it in the response header.
+- Output parser handles the current `file_change` item type (top-level `path` or a `changes[]` array), restoring file-activity tracking.
+
+### Fixed
+- **Codex CLI compatibility:** replaced the deprecated `--full-auto` flag with `--sandbox workspace-write` (Codex ~v0.131 made `--full-auto` a hidden alias that prints a deprecation warning). `mode: "full-auto"` on the `codex_exec` tool is unchanged.
+- Output parser ignores `agent_message` text on `item.started`/`item.updated` partials, preventing double-counted/garbled output when Codex streams.
+
+## [0.3.0] - 2026-04
+
+### Added
+- Parse activity events (`command_execution`, `file_read`, `file_write`) and token usage from the Codex JSON stream.
+- Rich plain-text response: metadata header (mode, cwd, token usage), activity log, and content.
+
+### Changed
+- `spawn`/`execFile` use `shell: true` on Windows for npm `.cmd` shim support.
+- Auth pre-check skipped on Windows (PowerShell profile errors cause false negatives); auth still verified when Codex runs.
+- Auth check timeout raised from 15s to 30s.
+
 ## [0.2.0] - 2026-03-27
 
 ### Changed

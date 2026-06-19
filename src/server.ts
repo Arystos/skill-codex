@@ -4,11 +4,17 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { TOOL_NAME, TOOL_DESCRIPTION, inputSchema, handleCodexExec } from "./tools/codex-exec.js";
+import {
+  TOOL_NAME,
+  TOOL_DESCRIPTION,
+  TOOL_INPUT_JSON_SCHEMA,
+  inputSchema,
+  handleCodexExec,
+} from "./tools/codex-exec.js";
 
 export function createServer(cwd: string): Server {
   const server = new Server(
-    { name: "skill-codex", version: "0.2.0" },
+    { name: "skill-codex", version: "0.6.0" },
     { capabilities: { tools: {} } },
   );
 
@@ -17,31 +23,12 @@ export function createServer(cwd: string): Server {
       {
         name: TOOL_NAME,
         description: TOOL_DESCRIPTION,
-        inputSchema: {
-          type: "object" as const,
-          properties: {
-            prompt: { type: "string", description: "The task description for Codex" },
-            mode: {
-              type: "string",
-              enum: ["exec", "full-auto"],
-              default: "exec",
-              description: "exec = read-only, full-auto = can write files",
-            },
-            cwd: { type: "string", description: "Working directory (defaults to server cwd)" },
-            timeoutMs: { type: "number", description: "Override default timeout in milliseconds" },
-            requireGit: {
-              type: "boolean",
-              default: false,
-              description: "Fail if not inside a git repository",
-            },
-          },
-          required: ["prompt"],
-        },
+        inputSchema: TOOL_INPUT_JSON_SCHEMA,
       },
     ],
   }));
 
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     if (request.params.name !== TOOL_NAME) {
       return {
         content: [{ type: "text", text: `Unknown tool: ${request.params.name}` }],
@@ -62,7 +49,26 @@ export function createServer(cwd: string): Server {
       };
     }
 
-    return handleCodexExec(parsed.data, cwd);
+    // Stream live progress only if the client requested it (sent a progressToken).
+    // MCP requires the `progress` value to monotonically increase per request.
+    const progressToken = request.params._meta?.progressToken;
+    let progressCounter = 0;
+    const onProgress =
+      progressToken === undefined
+        ? undefined
+        : (message: string): void => {
+            progressCounter += 1;
+            void extra
+              .sendNotification({
+                method: "notifications/progress",
+                params: { progressToken, progress: progressCounter, message },
+              })
+              .catch(() => {
+                // never let a dropped notification break the run
+              });
+          };
+
+    return handleCodexExec(parsed.data, cwd, onProgress);
   });
 
   return server;

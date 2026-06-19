@@ -58,6 +58,7 @@ The server exposes one tool: `codex_exec` with params:
 | `SKILL_CODEX_MAX_RETRIES` | `3` | Retry count for transient errors |
 | `SKILL_CODEX_DEBUG` | -- | Enable debug logging to stderr |
 | `SKILL_CODEX_DEPTH` | `0` | Recursion depth (set automatically) |
+| `SKILL_CODEX_WINDOWS_SANDBOX` | `unelevated` | Windows `windows.sandbox` mode; works around elevated-sandbox spawn failures (codex#24098) |
 
 ## Edge Case Handling
 

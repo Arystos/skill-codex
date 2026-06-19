@@ -18,12 +18,64 @@ export const inputSchema = z.object({
     .enum(["exec", "full-auto"])
     .default("exec")
     .describe("exec = read-only with confirmation, full-auto = can write files"),
+  sandbox: z
+    .enum(["read-only", "workspace-write", "danger-full-access"])
+    .optional()
+    .describe(
+      "Explicit Codex sandbox policy; overrides mode. read-only = no writes, workspace-write = write within cwd, danger-full-access = unrestricted (use with care).",
+    ),
+  sessionId: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{1,128}$/, "sessionId must be a Codex thread id (letters, digits, '-', '_')")
+    .optional()
+    .describe(
+      "Resume a prior Codex session by its thread id (returned in a previous response) so Codex retains context across calls.",
+    ),
   cwd: z.string().optional().describe("Working directory (defaults to server cwd)"),
   timeoutMs: z.number().optional().describe("Override default timeout in milliseconds"),
   requireGit: z.boolean().default(false).describe("Fail if not inside a git repository"),
 });
 
 export type CodexExecInput = z.infer<typeof inputSchema>;
+
+/**
+ * JSON Schema advertised to MCP clients in the `tools/list` response. Kept here
+ * next to the zod `inputSchema` (the runtime validator) so the two can't drift —
+ * a sync test asserts their property sets match. The MCP SDK wants a plain JSON
+ * Schema object, so we hand-write it rather than deriving it at runtime.
+ */
+export const TOOL_INPUT_JSON_SCHEMA = {
+  type: "object" as const,
+  properties: {
+    prompt: { type: "string", description: "The task description for Codex" },
+    mode: {
+      type: "string",
+      enum: ["exec", "full-auto"],
+      default: "exec",
+      description: "exec = read-only, full-auto = can write files",
+    },
+    sandbox: {
+      type: "string",
+      enum: ["read-only", "workspace-write", "danger-full-access"],
+      description:
+        "Explicit Codex sandbox policy; overrides mode. read-only = no writes, workspace-write = write within cwd, danger-full-access = unrestricted (use with care).",
+    },
+    sessionId: {
+      type: "string",
+      pattern: "^[A-Za-z0-9_-]{1,128}$",
+      description:
+        "Resume a prior Codex session by its thread id (returned in a previous response) so Codex retains context across calls.",
+    },
+    cwd: { type: "string", description: "Working directory (defaults to server cwd)" },
+    timeoutMs: { type: "number", description: "Override default timeout in milliseconds" },
+    requireGit: {
+      type: "boolean",
+      default: false,
+      description: "Fail if not inside a git repository",
+    },
+  },
+  required: ["prompt"],
+};
 
 function formatError(err: unknown): string {
   if (err instanceof BridgeError) {
@@ -42,17 +94,38 @@ function formatRichResponse(
 ): string {
   const lines: string[] = [];
 
-  const modeLabel = input.mode === "full-auto" ? "full-auto" : "read-only";
-  const metaParts: string[] = [modeLabel, cwd];
+  // On resume, no --sandbox is sent (the session keeps its original policy), so
+  // labelling it with a specific mode would be misleading — show "resumed" instead.
+  const sandboxLabel = input.sessionId
+    ? "resumed"
+    : (input.sandbox ?? (input.mode === "full-auto" ? "workspace-write" : "read-only"));
+  const metaParts: string[] = [sandboxLabel, cwd];
+
+  if (typeof result.durationMs === "number") {
+    metaParts.push(`${(result.durationMs / 1000).toFixed(1)}s`);
+  }
 
   if (result.usage) {
-    const { input_tokens: inp, output_tokens: out, cached_input_tokens: cached } = result.usage;
+    const {
+      input_tokens: inp,
+      output_tokens: out,
+      cached_input_tokens: cached,
+      reasoning_output_tokens: reasoning,
+    } = result.usage;
     metaParts.push(
-      `${inp} tok in${cached > 0 ? ` (${cached} cached)` : ""} \u2192 ${out} out`,
+      `${inp} tok in${cached > 0 ? ` (${cached} cached)` : ""} \u2192 ${out} out${reasoning > 0 ? ` (+${reasoning} reasoning)` : ""}`,
     );
   }
 
   lines.push(`[${metaParts.join(" \u2502 ")}]`);
+
+  if (result.sessionId) {
+    lines.push(`  session: ${result.sessionId} (pass as sessionId to continue this conversation)`);
+  }
+
+  if (result.logPath) {
+    lines.push(`  live log: ${result.logPath}`);
+  }
 
   if (result.activity.length > 0) {
     for (const a of result.activity) {
@@ -75,6 +148,7 @@ function formatRichResponse(
 export async function handleCodexExec(
   input: CodexExecInput,
   serverCwd: string,
+  onProgress?: (message: string) => void,
 ): Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean }> {
   const rawCwd = input.cwd ?? serverCwd;
   const cwd = path.resolve(rawCwd);
@@ -101,7 +175,10 @@ export async function handleCodexExec(
         prompt: input.prompt,
         cwd,
         mode: input.mode,
+        sandbox: input.sandbox,
+        sessionId: input.sessionId,
         timeoutMs: input.timeoutMs,
+        onProgress,
       }),
     );
 

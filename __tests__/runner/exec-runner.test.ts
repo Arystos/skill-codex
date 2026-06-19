@@ -97,7 +97,7 @@ describe("execCodex", () => {
     expect(mockSpawn).not.toHaveBeenCalled();
   });
 
-  it("passes correct args for exec mode (includes --sandbox, read-only)", async () => {
+  it("passes correct args for a fresh exec run (includes --sandbox, read-only)", async () => {
     const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as any);
@@ -114,7 +114,7 @@ describe("execCodex", () => {
     expect(args).toContain("-");
   });
 
-  it("passes --full-auto for full-auto mode", async () => {
+  it("passes --sandbox workspace-write for full-auto mode (not deprecated --full-auto)", async () => {
     const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as any);
@@ -122,9 +122,67 @@ describe("execCodex", () => {
     await execCodex({ prompt: "do it", cwd: "/tmp", mode: "full-auto" });
 
     const [_bin, args] = mockSpawn.mock.calls[0];
-    expect(args).toContain("--full-auto");
-    expect(args).not.toContain("--sandbox");
+    expect(args).toContain("--sandbox");
+    expect(args).toContain("workspace-write");
+    expect(args).not.toContain("--full-auto");
     expect(args).not.toContain("read-only");
+  });
+
+  it("lets explicit sandbox override mode", async () => {
+    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const proc = makeMockProcess({ stdoutData: validOutput });
+    mockSpawn.mockReturnValue(proc as any);
+
+    await execCodex({
+      prompt: "do it",
+      cwd: "/tmp",
+      mode: "full-auto",
+      sandbox: "danger-full-access",
+    });
+
+    const [_bin, args] = mockSpawn.mock.calls[0];
+    expect(args).toContain("--sandbox");
+    expect(args).toContain("danger-full-access");
+    expect(args).not.toContain("workspace-write");
+  });
+
+  it("uses exec resume without --sandbox when sessionId is provided", async () => {
+    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const proc = makeMockProcess({ stdoutData: validOutput });
+    mockSpawn.mockReturnValue(proc as any);
+
+    await execCodex({
+      prompt: "continue",
+      cwd: "/tmp",
+      mode: "exec",
+      sandbox: "danger-full-access",
+      sessionId: "session-123",
+    });
+
+    const [_bin, args] = mockSpawn.mock.calls[0];
+    expect(args.slice(0, 3)).toEqual(["exec", "resume", "session-123"]);
+    expect(args).toContain("--json");
+    expect(args).toContain("--skip-git-repo-check");
+    expect(args).not.toContain("--sandbox");
+    expect(args).toContain("-");
+  });
+
+  it("injects windows.sandbox=unelevated config when running on Windows", async () => {
+    const original = Object.getOwnPropertyDescriptor(process, "platform");
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    try {
+      const validOutput = JSON.stringify({ type: "result", content: "ok" }) + "\n";
+      const proc = makeMockProcess({ stdoutData: validOutput });
+      mockSpawn.mockReturnValue(proc as any);
+
+      await execCodex({ prompt: "review", cwd: "/tmp", mode: "exec" });
+
+      const [_bin, args] = mockSpawn.mock.calls[0];
+      expect(args).toContain("-c");
+      expect(args).toContain("windows.sandbox=unelevated");
+    } finally {
+      if (original) Object.defineProperty(process, "platform", original);
+    }
   });
 
   it("writes prompt to stdin", async () => {
@@ -165,6 +223,39 @@ describe("execCodex", () => {
     await expect(
       execCodex({ prompt: "fail", cwd: "/tmp", mode: "exec" }),
     ).rejects.toThrow(AuthExpiredError);
+  });
+
+  it("emits progress messages from stdout JSONL events and attaches logPath/durationMs", async () => {
+    const out =
+      JSON.stringify({ type: "item.started", item: { type: "command_execution", command: "git status", status: "in_progress" } }) +
+      "\n" +
+      JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: "All good" } }) +
+      "\n" +
+      JSON.stringify({ type: "turn.completed", usage: { input_tokens: 1, output_tokens: 1 } }) +
+      "\n";
+    const proc = makeMockProcess({ stdoutData: out });
+    mockSpawn.mockReturnValue(proc as any);
+
+    const progress: string[] = [];
+    const result = await execCodex({
+      prompt: "check",
+      cwd: "/tmp",
+      mode: "exec",
+      onProgress: (m) => progress.push(m),
+    });
+
+    expect(progress).toContain("running: git status");
+    expect(progress).toContain("writing response…");
+    expect(typeof result.logPath).toBe("string");
+    expect(typeof result.durationMs).toBe("number");
+  });
+
+  it("does not call onProgress when none is provided (no throw)", async () => {
+    const validOutput = JSON.stringify({ type: "result", content: "ok" }) + "\n";
+    const proc = makeMockProcess({ stdoutData: validOutput });
+    mockSpawn.mockReturnValue(proc as any);
+
+    await expect(execCodex({ prompt: "x", cwd: "/tmp", mode: "exec" })).resolves.toBeDefined();
   });
 
   it("uses cached binary path when spawning", async () => {

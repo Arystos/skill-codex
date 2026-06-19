@@ -13,6 +13,10 @@ export function getGlobalCommandsDir(): string {
   return path.join(getClaudeDir(), "commands");
 }
 
+export function getGlobalSkillsDir(): string {
+  return path.join(getClaudeDir(), "skills");
+}
+
 export function getProjectCommandsDir(cwd: string): string {
   return path.join(cwd, ".claude", "commands");
 }
