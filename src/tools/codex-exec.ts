@@ -232,6 +232,17 @@ export async function handleCodexExec(
     };
   }
 
+  // Reject conflicting/stray options instead of silently ignoring them.
+  const optError = (msg: string): { content: Array<{ type: "text"; text: string }>; isError: boolean } => ({
+    content: [{ type: "text", text: `[skill-codex error: INVALID_OPTIONS] ${msg}` }],
+    isError: true,
+  });
+  if (input.review && input.sessionId) return optError("review and sessionId are mutually exclusive");
+  if (input.reviewBase && input.reviewCommit) return optError("reviewBase and reviewCommit are mutually exclusive");
+  if ((input.reviewBase ?? input.reviewCommit) && !input.review) {
+    return optError("reviewBase/reviewCommit require review: true");
+  }
+
   let lockRelease: (() => void) | null = null;
 
   try {

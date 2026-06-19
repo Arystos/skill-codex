@@ -228,7 +228,6 @@ describe("handleCodexExec", () => {
         reasoningEffort: "xhigh",
         review: true,
         reviewBase: "main",
-        reviewCommit: "abc1234",
         requireGit: false,
       },
       REAL_CWD,
@@ -241,9 +240,29 @@ describe("handleCodexExec", () => {
         reasoningEffort: "xhigh",
         review: true,
         reviewBase: "main",
-        reviewCommit: "abc1234",
       }),
     );
+  });
+
+  it("rejects conflicting/stray review options", async () => {
+    const both = await handleCodexExec(
+      { prompt: "x", mode: "exec", review: true, reviewBase: "main", reviewCommit: "abc1234", requireGit: false },
+      REAL_CWD,
+    );
+    expect(both.isError).toBe(true);
+    expect(both.content[0].text).toContain("INVALID_OPTIONS");
+
+    const stray = await handleCodexExec(
+      { prompt: "x", mode: "exec", reviewBase: "main", requireGit: false },
+      REAL_CWD,
+    );
+    expect(stray.isError).toBe(true);
+
+    const both2 = await handleCodexExec(
+      { prompt: "x", mode: "exec", review: true, sessionId: "abc", requireGit: false },
+      REAL_CWD,
+    );
+    expect(both2.isError).toBe(true);
   });
 
   it("formats review metadata with explicit model and reasoning effort", async () => {
