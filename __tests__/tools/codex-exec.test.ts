@@ -189,9 +189,16 @@ describe("handleCodexExec", () => {
         sessionId: "thread-123",
       }),
     );
-    expect(result.content[0].text).toContain("[danger-full-access");
+    // sessionId set => resumed run; the header shows "resumed", not a sandbox mode,
+    // because resume keeps the original session's policy (no --sandbox is sent).
+    expect(result.content[0].text).toContain("[resumed");
     expect(result.content[0].text).toContain(
       "session: thread-123 (pass as sessionId to continue this conversation)",
     );
+  });
+
+  it("rejects a sessionId containing shell metacharacters", () => {
+    const parsed = inputSchema.safeParse({ prompt: "x", sessionId: "abc && calc" });
+    expect(parsed.success).toBe(false);
   });
 });

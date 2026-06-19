@@ -163,7 +163,7 @@ The skill-codex MCP server exposes exactly one tool: `codex_exec`.
 **User says:** "Review my changes before I commit."
 
 **Actions:**
-1. Run `git diff` → capture unstaged changes (fall back to `git diff --cached` if empty).
+1. Run `git status --short` (to catch new untracked files), then `git diff` → capture unstaged changes (fall back to `git diff --cached` if empty).
 2. Call `codex_exec` with `mode: "exec"` and the review prompt.
 3. Present: 1 CRITICAL (missing null check, `src/runner/runner.ts:47` — confirmed), 2 MEDIUM (disagree with one, agree with the other), 1 LOW (style nit, skip).
 4. Offer to fix the CRITICAL and the confirmed MEDIUM.

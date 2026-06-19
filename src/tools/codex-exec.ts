@@ -26,6 +26,7 @@ export const inputSchema = z.object({
     ),
   sessionId: z
     .string()
+    .regex(/^[A-Za-z0-9_-]{1,128}$/, "sessionId must be a Codex thread id (letters, digits, '-', '_')")
     .optional()
     .describe(
       "Resume a prior Codex session by its thread id (returned in a previous response) so Codex retains context across calls.",
@@ -61,6 +62,7 @@ export const TOOL_INPUT_JSON_SCHEMA = {
     },
     sessionId: {
       type: "string",
+      pattern: "^[A-Za-z0-9_-]{1,128}$",
       description:
         "Resume a prior Codex session by its thread id (returned in a previous response) so Codex retains context across calls.",
     },
@@ -92,8 +94,11 @@ function formatRichResponse(
 ): string {
   const lines: string[] = [];
 
-  const sandboxLabel =
-    input.sandbox ?? (input.mode === "full-auto" ? "workspace-write" : "read-only");
+  // On resume, no --sandbox is sent (the session keeps its original policy), so
+  // labelling it with a specific mode would be misleading — show "resumed" instead.
+  const sandboxLabel = input.sessionId
+    ? "resumed"
+    : (input.sandbox ?? (input.mode === "full-auto" ? "workspace-write" : "read-only"));
   const metaParts: string[] = [sandboxLabel, cwd];
 
   if (typeof result.durationMs === "number") {

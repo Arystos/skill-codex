@@ -81,23 +81,15 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
 
   return new Promise((resolve, reject) => {
     const timeoutMs = getTimeout(params.timeoutMs);
-    const sandbox =
-      params.sandbox ?? (params.mode === "full-auto" ? "workspace-write" : "read-only");
-    const args: string[] = params.sessionId
-      ? [
-          "exec",
-          "resume",
-          params.sessionId,
-          "--json",
-          "--skip-git-repo-check",
-        ]
-      : [
-          "exec",
-          "--json",
-          "--skip-git-repo-check",
-          "--sandbox",
-          sandbox,
-        ];
+    let args: string[];
+    if (params.sessionId) {
+      // Resume keeps the original session's sandbox policy; `resume` has no --sandbox flag.
+      args = ["exec", "resume", params.sessionId, "--json", "--skip-git-repo-check"];
+    } else {
+      const sandbox =
+        params.sandbox ?? (params.mode === "full-auto" ? "workspace-write" : "read-only");
+      args = ["exec", "--json", "--skip-git-repo-check", "--sandbox", sandbox];
+    }
 
     // Platform-specific sandbox config (e.g. windows.sandbox=unelevated to work
     // around Codex's broken elevated Windows sandbox). Empty on non-Windows.

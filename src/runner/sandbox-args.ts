@@ -16,6 +16,9 @@ import { WINDOWS_SANDBOX_ENV, WINDOWS_SANDBOX_DEFAULT } from "../config/constant
  */
 export function getSandboxConfigArgs(): readonly string[] {
   if (process.platform !== "win32") return [];
-  const mode = process.env[WINDOWS_SANDBOX_ENV]?.trim() || WINDOWS_SANDBOX_DEFAULT;
+  const raw = process.env[WINDOWS_SANDBOX_ENV]?.trim() || WINDOWS_SANDBOX_DEFAULT;
+  // Allowlist: Windows spawns via shell:true, so reject anything but a bare mode
+  // token to keep a stray env value from injecting extra shell args.
+  const mode = /^[a-z-]+$/.test(raw) ? raw : WINDOWS_SANDBOX_DEFAULT;
   return ["-c", `windows.sandbox=${mode}`];
 }
