@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-06-19
+
+### Added
+- **Explicit sandbox control** on `codex_exec`: a `sandbox` param (`read-only` | `workspace-write` | `danger-full-access`) that overrides the `mode` default and maps to `codex exec --sandbox`.
+- **Session memory**: a `sessionId` param resumes a prior Codex session via `codex exec resume <thread_id>`, so Codex retains context across calls. The thread id is captured from the `thread.started` event and surfaced in the response.
+- **Structured review verdict** (APPROVED / WARNING / BLOCKED) plus a bounded (≤3 round) fix → re-review loop in `/codex-review` and the `codex-bridge` agent skill, with Claude as the final judge.
+- `DISTRIBUTION.md` — a prioritized, evidence-backed distribution checklist.
+
+### Changed
+- **Live log** now defaults to a per-workspace file under the OS temp dir instead of `<cwd>/.skill-codex.log`, so a run no longer drops a growing untracked file into your working repo. `SKILL_CODEX_LOG` still overrides.
+- Review/delegate flows now run `git status --short` so they see newly-created files that `git diff` alone misses.
+- **Fail soft:** if Codex is unavailable (not installed, auth expired, offline), the review degrades to Claude-only instead of blocking the user.
+- CI now enforces the 80% coverage gate; the README leads with cross-model positioning and an honest comparison table.
+
+### Notes
+- Verified against `codex-cli` 0.133.0.
+
 ## [0.5.0] - 2026-06-15
 
 ### Added
