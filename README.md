@@ -3,6 +3,9 @@
 [![npm version](https://img.shields.io/npm/v/skill-codex)](https://www.npmjs.com/package/skill-codex)
 [![npm downloads](https://img.shields.io/npm/dm/skill-codex)](https://www.npmjs.com/package/skill-codex)
 ![CI](https://github.com/Arystos/skill-codex/actions/workflows/ci.yml/badge.svg)
+<!-- After enabling the repo on codecov.io (see DISTRIBUTION.md), uncomment:
+[![codecov](https://codecov.io/gh/Arystos/skill-codex/graph/badge.svg)](https://codecov.io/gh/Arystos/skill-codex) -->
+![Coverage](https://img.shields.io/badge/coverage-80%25%2B%20enforced-brightgreen)
 ![Windows](https://img.shields.io/badge/Windows-0078D4?style=flat&logo=windows&logoColor=white)
 ![macOS](https://img.shields.io/badge/macOS-000000?style=flat&logo=apple&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat&logo=linux&logoColor=black)
@@ -11,6 +14,12 @@
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5E5B?style=flat&logo=ko-fi&logoColor=white)](https://ko-fi.com/arystos)
 
 A cross-platform [Claude Code](https://code.claude.com) skill that integrates [OpenAI Codex CLI](https://github.com/openai/codex) for code review, task delegation, and consultation. Uses your existing Codex subscription -- no API key required.
+
+> **Two models rarely make the same mistake.** skill-codex lets Claude and Codex check each other's work -- Claude plans and builds fast, Codex reviews with fresh eyes -- from a single terminal, using the Codex subscription you already pay for. No API key, no second window, no copy-paste.
+
+<!-- Demo GIF: record a ~20s clip of `/codex-review` catching a real bug, save it to docs/demo.gif, then uncomment the next line:
+![skill-codex demo](docs/demo.gif)
+-->
 
 ## Why?
 
@@ -21,9 +30,27 @@ Claude Code and Codex CLI have different strengths. Claude excels at reasoning, 
 * **`/codex-consult`** -- Get a second opinion on architecture or design decisions
 * **`codex-bridge` agent skill** -- Auto-triggers on implementation/review/consult requests so Claude reaches for Codex without an explicit slash command
 * **Auto-review hook** -- Smart PostToolUse hook suggests review after significant changes
-* **Live progress** -- Streams Codex's activity (running commands, file edits, elapsed time) as MCP progress so long runs never look frozen; also mirrored to a tail-able `.skill-codex.log`
+* **Live progress** -- Streams Codex's activity (running commands, file edits, elapsed time) as MCP progress so long runs never look frozen; also mirrored to a tail-able log file (under the OS temp dir, path printed at run start -- never pollutes your repo)
 * **Subscription-first** -- Works with `codex login`, no `OPENAI_API_KEY` needed
 * **Edge case handling** -- Retry logic, timeout, anti-recursion, lock files, pre-flight checks
+
+### Why not just use Claude's own subagents?
+
+Because a subagent is the **same model**. When Claude reviews Claude, you inherit the same blind spots -- it's grading its own homework. A *different* model family was trained differently, so its mistakes don't correlate with Claude's: it catches what Claude is confidently wrong about, and Claude catches what Codex gets wrong. That uncorrelated, cross-model check is the entire point -- and skill-codex keeps Claude as the final judge, never blindly forwarding Codex's verdict.
+
+### How it compares
+
+| | skill-codex | Most Codex MCP bridges |
+|---|---|---|
+| Codex **subscription** auth (no `OPENAI_API_KEY`) | ✅ | ⚠️ often require an API key |
+| **Windows** verified in CI (not just "should work") | ✅ 9-way matrix (Windows/macOS/Linux × Node 18/20/22) | ❌ usually Linux-only CI |
+| **Live progress** so long runs never look frozen | ✅ MCP progress + tail-able log | ⚠️ varies |
+| **Slash commands** (`/codex-review`, `/codex-do`, `/codex-consult`) | ✅ | ⚠️ some |
+| **Auto-review hook** (PostToolUse) | ✅ | ❌ |
+| **Agent skill** (auto-triggers, no command needed) | ✅ | ❌ |
+| **Guardrails**: retry, timeout, anti-recursion, lock files | ✅ | ⚠️ partial |
+
+*A snapshot, not a leaderboard -- the Codex MCP space moves fast, so check each tool's current state. The point isn't "skill-codex wins everything"; it's that the operational details (subscription auth, real Windows support, never-frozen runs, guardrails) are where it focuses.*
 
 ## Prerequisites
 
@@ -101,7 +128,7 @@ Environment variables (all optional):
 |----------|---------|-------------|
 | `SKILL_CODEX_TIMEOUT_MS` | `300000` (5 min) | Subprocess timeout |
 | `SKILL_CODEX_MAX_RETRIES` | `3` | Retry count for transient errors |
-| `SKILL_CODEX_LOG` | `<cwd>/.skill-codex.log` | Path to the live, tail-able per-run log |
+| `SKILL_CODEX_LOG` | `<os-temp>/skill-codex/<workspace>.log` | Absolute path override for the live, tail-able per-run log |
 | `SKILL_CODEX_DEBUG` | -- | Enable debug logging to stderr |
 | `SKILL_CODEX_WINDOWS_SANDBOX` | `unelevated` | Windows only — Codex `windows.sandbox` mode (`unelevated`/`elevated`) |
 
@@ -173,6 +200,7 @@ cd skill-codex
 npm install
 npm run build
 npm test
+npm run test:coverage   # enforces the same 80%+ gate as CI
 ```
 
 ## Troubleshooting
