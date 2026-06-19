@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 444" width="880" height="444" role="img" aria-label="skill-codex demo: Claude approves its own diff; Codex, a different model, catches the bug and blocks it.">
+  <rect x="0" y="0" width="880" height="444" rx="10" fill="#282a36"/>
+  <circle cx="24" cy="24" r="6" fill="#ff5555"/>
+  <circle cx="44" cy="24" r="6" fill="#f1fa8c"/>
+  <circle cx="64" cy="24" r="6" fill="#50fa7b"/>
+  <text x="92" y="29" font-family="ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="14" fill="#6272a4">skill-codex — two models rarely make the same mistake</text>
+  <line x1="0" y1="44" x2="880" y2="44" stroke="#44475a" stroke-width="1"/>
+  <g font-family="ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace" font-size="15">
+    <text x="24" y="78" fill="#6272a4"># Without skill-codex — Claude reviews its own change</text>
+    <text x="24" y="106"><tspan fill="#8be9fd">&#10095; </tspan><tspan fill="#f8f8f2">review my login change before I commit</tspan></text>
+    <text x="24" y="134"><tspan fill="#50fa7b">&#9679; </tspan><tspan fill="#f8f8f2">Looks solid — clean diff, no blocking issues. </tspan><tspan fill="#50fa7b">&#10003; Ready to commit.</tspan></text>
+    <text x="24" y="162" fill="#6272a4">  …the model that wrote the code just graded its own homework.</text>
+    <line x1="24" y1="186" x2="856" y2="186" stroke="#44475a" stroke-width="1" stroke-dasharray="3 4"/>
+    <text x="24" y="214" fill="#6272a4"># With skill-codex — a different model (Codex) reviews</text>
+    <text x="24" y="242"><tspan fill="#8be9fd">&#10095; </tspan><tspan fill="#f8f8f2">/codex-review</tspan></text>
+    <text x="24" y="270" fill="#6272a4">[review │ ~/app │ 3.4s │ 28,761 tok → 146 out]</text>
+    <text x="24" y="298"><tspan fill="#ff5555" font-weight="bold">Verdict: BLOCKED</tspan><tspan fill="#f8f8f2"> — 1 CRITICAL</tspan></text>
+    <text x="24" y="326"><tspan fill="#ff5555">CRITICAL </tspan><tspan fill="#f8f8f2">— src/auth/login.ts:42</tspan></text>
+    <text x="24" y="354"><tspan fill="#f8f8f2">  Password check uses </tspan><tspan fill="#f1fa8c">==</tspan><tspan fill="#f8f8f2"> — timing-unsafe + type coercion.</tspan></text>
+    <text x="24" y="382" fill="#f8f8f2">  Use a constant-time compare.</text>
+    <text x="24" y="416"><tspan fill="#50fa7b">&#9679; </tspan><tspan fill="#f8f8f2">Fixed → re-reviewed → </tspan><tspan fill="#50fa7b" font-weight="bold">Verdict: APPROVED &#10003;</tspan></text>
+  </g>
+</svg>
