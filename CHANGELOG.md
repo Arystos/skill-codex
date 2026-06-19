@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.1] - 2026-06-19
+
+### Fixed
+- **Native review (`review: true`) was broken.** The runner always appended the `-` stdin sentinel, but `codex exec review` rejects a `[PROMPT]` alongside a scope flag (`--uncommitted` / `--base` / `--commit`) — so every native review failed with *"the argument '--uncommitted' cannot be used with '[PROMPT]'"*. The prompt is now sent only for prompt-only reviews (custom instructions, no scope flag); scope-flag reviews omit `-`. Added a guard that rejects combining a review target with a prompt (the CLI forbids it).
+
 ## [0.7.0] - 2026-06-19
 
 ### Added

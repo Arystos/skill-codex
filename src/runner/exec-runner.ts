@@ -87,22 +87,35 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
   return new Promise((resolve, reject) => {
     const timeoutMs = getTimeout(params.timeoutMs);
     let args: string[];
+    // Whether to send the prompt over stdin (the `-` sentinel). For native
+    // review, the codex CLI forbids combining a scope flag
+    // (--uncommitted/--base/--commit) with a PROMPT, so we only pass the prompt
+    // when reviewing with custom instructions and no scope flag.
+    let sendStdinPrompt: boolean;
     if (params.review) {
       args = ["exec", "review", "--json", "--skip-git-repo-check"];
       if (params.reviewBase) {
         args.push("--base", params.reviewBase);
+        sendStdinPrompt = false;
       } else if (params.reviewCommit) {
         args.push("--commit", params.reviewCommit);
+        sendStdinPrompt = false;
+      } else if (params.prompt?.trim()) {
+        // Custom review instructions only — review defaults to the working tree.
+        sendStdinPrompt = true;
       } else {
         args.push("--uncommitted");
+        sendStdinPrompt = false;
       }
     } else if (params.sessionId) {
       // Resume keeps the original session's sandbox policy; `resume` has no --sandbox flag.
       args = ["exec", "resume", params.sessionId, "--json", "--skip-git-repo-check"];
+      sendStdinPrompt = true;
     } else {
       const sandbox =
         params.sandbox ?? (params.mode === "full-auto" ? "workspace-write" : "read-only");
       args = ["exec", "--json", "--skip-git-repo-check", "--sandbox", sandbox];
+      sendStdinPrompt = true;
     }
 
     if (params.model) {
@@ -118,10 +131,13 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
     args.push(...getSandboxConfigArgs());
 
     // Prompt passed via stdin to avoid shell injection — NOT as a positional arg
-    const stdinPrompt = params.prompt;
+    const stdinPrompt = params.prompt ?? "";
 
-    // Use "-" to tell codex to read prompt from stdin
-    args.push("-");
+    // Use "-" to tell codex to read the prompt from stdin. Omitted for review
+    // runs that use a scope flag, where the CLI rejects a PROMPT.
+    if (sendStdinPrompt) {
+      args.push("-");
+    }
 
     const env = {
       ...process.env,
@@ -217,8 +233,11 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
       stderr += chunk.toString();
     });
 
-    // Write prompt via stdin then close — safe from shell injection
-    child.stdin?.write(stdinPrompt);
+    // Write prompt via stdin then close — safe from shell injection. Skipped
+    // for review-with-scope runs that don't pass `-` (the CLI rejects a PROMPT).
+    if (sendStdinPrompt) {
+      child.stdin?.write(stdinPrompt);
+    }
     child.stdin?.end();
 
     const onClose = (exitCode: number | null): void => {

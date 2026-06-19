@@ -223,15 +223,6 @@ export async function handleCodexExec(
     };
   }
 
-  // `prompt` is optional only for native review (where it's optional custom
-  // instructions). Every other call must supply a prompt.
-  if (!input.review && !input.prompt?.trim()) {
-    return {
-      content: [{ type: "text", text: "[skill-codex error: MISSING_PROMPT] prompt is required unless review is set" }],
-      isError: true,
-    };
-  }
-
   // Reject conflicting/stray options instead of silently ignoring them.
   const optError = (msg: string): { content: Array<{ type: "text"; text: string }>; isError: boolean } => ({
     content: [{ type: "text", text: `[skill-codex error: INVALID_OPTIONS] ${msg}` }],
@@ -241,6 +232,21 @@ export async function handleCodexExec(
   if (input.reviewBase && input.reviewCommit) return optError("reviewBase and reviewCommit are mutually exclusive");
   if ((input.reviewBase ?? input.reviewCommit) && !input.review) {
     return optError("reviewBase/reviewCommit require review: true");
+  }
+  // The codex CLI forbids combining a review scope flag with a PROMPT.
+  if (input.review && (input.reviewBase ?? input.reviewCommit) && input.prompt?.trim()) {
+    return optError(
+      "a review target (reviewBase/reviewCommit) can't be combined with a prompt — Codex review takes a target OR instructions, not both",
+    );
+  }
+
+  // `prompt` is optional only for native review (where it's optional custom
+  // instructions). Every other call must supply a prompt.
+  if (!input.review && !input.prompt?.trim()) {
+    return {
+      content: [{ type: "text", text: "[skill-codex error: MISSING_PROMPT] prompt is required unless review is set" }],
+      isError: true,
+    };
   }
 
   let lockRelease: (() => void) | null = null;
