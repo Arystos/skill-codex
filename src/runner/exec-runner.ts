@@ -28,6 +28,11 @@ export interface ExecParams {
   readonly mode: "exec" | "full-auto";
   readonly sandbox?: "read-only" | "workspace-write" | "danger-full-access";
   readonly sessionId?: string;
+  readonly model?: string;
+  readonly reasoningEffort?: "minimal" | "low" | "medium" | "high" | "xhigh";
+  readonly review?: boolean;
+  readonly reviewBase?: string;
+  readonly reviewCommit?: string;
   readonly timeoutMs?: number;
   /**
    * Optional live-progress sink. Called with a short status line each time
@@ -82,13 +87,30 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
   return new Promise((resolve, reject) => {
     const timeoutMs = getTimeout(params.timeoutMs);
     let args: string[];
-    if (params.sessionId) {
+    if (params.review) {
+      args = ["exec", "review", "--json", "--skip-git-repo-check"];
+      if (params.reviewBase) {
+        args.push("--base", params.reviewBase);
+      } else if (params.reviewCommit) {
+        args.push("--commit", params.reviewCommit);
+      } else {
+        args.push("--uncommitted");
+      }
+    } else if (params.sessionId) {
       // Resume keeps the original session's sandbox policy; `resume` has no --sandbox flag.
       args = ["exec", "resume", params.sessionId, "--json", "--skip-git-repo-check"];
     } else {
       const sandbox =
         params.sandbox ?? (params.mode === "full-auto" ? "workspace-write" : "read-only");
       args = ["exec", "--json", "--skip-git-repo-check", "--sandbox", sandbox];
+    }
+
+    if (params.model) {
+      args.push("-m", params.model);
+    }
+
+    if (params.reasoningEffort) {
+      args.push("-c", `model_reasoning_effort=${params.reasoningEffort}`);
     }
 
     // Platform-specific sandbox config (e.g. windows.sandbox=unelevated to work

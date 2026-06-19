@@ -95,12 +95,15 @@ You in Claude Code
 
 The MCP server spawns `codex exec` as a subprocess, using your logged-in Codex session. Claude sees the output and critically evaluates it -- **Codex is treated as a peer, not an authority**.
 
-### Advanced: sandbox control & session memory
+### Advanced: sandbox, sessions, model & review
 
-The `codex_exec` tool accepts two optional parameters beyond `mode`:
+These `codex_exec` parameters are all optional -- omit them and Codex uses its defaults:
 
 * **`sandbox`** -- the explicit Codex sandbox policy (`read-only`, `workspace-write`, or `danger-full-access`), overriding the `mode` default. Use `danger-full-access` only when you understand the risk.
-* **`sessionId`** -- resume a previous Codex session for multi-round memory. Each response includes the session's thread id; pass it back as `sessionId` so Codex retains context -- e.g. a follow-up review that checks whether *previously flagged* issues were fixed, instead of re-discovering them.
+* **`sessionId`** -- resume a previous Codex session for multi-round memory. Each response includes the session's thread id; pass it back so Codex retains context -- e.g. a follow-up review that checks whether *previously flagged* issues were fixed, instead of re-discovering them.
+* **`model`** -- pick the Codex model (e.g. `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`). Route cheap tasks to a smaller model and escalate hard ones; omit to use your configured default.
+* **`reasoningEffort`** -- how hard Codex thinks: `minimal` | `low` | `medium` | `high` | `xhigh`. Omit for the model's default.
+* **`review`** -- run Codex's native diff-scoped reviewer (`codex exec review`) instead of a freeform prompt, optionally targeting a branch (`reviewBase`) or commit (`reviewCommit`). The prompt becomes optional focus instructions.
 
 ### Auto-review
 

@@ -64,6 +64,23 @@ describe("handleCodexExec", () => {
     expect(parsed.sessionId).toBe("thread-123");
   });
 
+  it("accepts model, reasoningEffort, and native review fields in the schema", () => {
+    const parsed = inputSchema.parse({
+      review: true,
+      model: "gpt-5.4-mini",
+      reasoningEffort: "high",
+      reviewBase: "main/feature-1",
+      reviewCommit: "abc1234",
+    });
+
+    expect(parsed.mode).toBe("exec");
+    expect(parsed.review).toBe(true);
+    expect(parsed.model).toBe("gpt-5.4-mini");
+    expect(parsed.reasoningEffort).toBe("high");
+    expect(parsed.reviewBase).toBe("main/feature-1");
+    expect(parsed.reviewCommit).toBe("abc1234");
+  });
+
   it("publishes a tools/list JSON schema that stays in sync with the zod inputSchema", () => {
     // The MCP-advertised schema (server.ts) and the runtime validator must not
     // drift — otherwise params validate at the handler but stay invisible to clients.
@@ -72,6 +89,11 @@ describe("handleCodexExec", () => {
     expect(jsonKeys).toEqual(zodKeys);
     expect(jsonKeys).toContain("sandbox");
     expect(jsonKeys).toContain("sessionId");
+    expect(jsonKeys).toContain("model");
+    expect(jsonKeys).toContain("reasoningEffort");
+    expect(jsonKeys).toContain("review");
+    expect(jsonKeys).toContain("reviewBase");
+    expect(jsonKeys).toContain("reviewCommit");
   });
 
   it("returns error for invalid cwd", async () => {
@@ -197,8 +219,93 @@ describe("handleCodexExec", () => {
     );
   });
 
+  it("passes model, reasoningEffort, and review options through to execCodex", async () => {
+    await handleCodexExec(
+      {
+        prompt: "focus on auth",
+        mode: "exec",
+        model: "gpt-5.4",
+        reasoningEffort: "xhigh",
+        review: true,
+        reviewBase: "main",
+        requireGit: false,
+      },
+      REAL_CWD,
+    );
+
+    expect(mockExecCodex).toHaveBeenCalledOnce();
+    expect(mockExecCodex).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "gpt-5.4",
+        reasoningEffort: "xhigh",
+        review: true,
+        reviewBase: "main",
+      }),
+    );
+  });
+
+  it("rejects conflicting/stray review options", async () => {
+    const both = await handleCodexExec(
+      { prompt: "x", mode: "exec", review: true, reviewBase: "main", reviewCommit: "abc1234", requireGit: false },
+      REAL_CWD,
+    );
+    expect(both.isError).toBe(true);
+    expect(both.content[0].text).toContain("INVALID_OPTIONS");
+
+    const stray = await handleCodexExec(
+      { prompt: "x", mode: "exec", reviewBase: "main", requireGit: false },
+      REAL_CWD,
+    );
+    expect(stray.isError).toBe(true);
+
+    const both2 = await handleCodexExec(
+      { prompt: "x", mode: "exec", review: true, sessionId: "abc", requireGit: false },
+      REAL_CWD,
+    );
+    expect(both2.isError).toBe(true);
+  });
+
+  it("formats review metadata with explicit model and reasoning effort", async () => {
+    const result = await handleCodexExec(
+      {
+        prompt: "focus on auth",
+        mode: "exec",
+        model: "gpt-5.4",
+        reasoningEffort: "medium",
+        review: true,
+        requireGit: false,
+      },
+      REAL_CWD,
+    );
+
+    expect(result.content[0].text).toContain("[review");
+    expect(result.content[0].text).toContain("gpt-5.4");
+    expect(result.content[0].text).toContain("effort:medium");
+  });
+
   it("rejects a sessionId containing shell metacharacters", () => {
     const parsed = inputSchema.safeParse({ prompt: "x", sessionId: "abc && calc" });
     expect(parsed.success).toBe(false);
+  });
+
+  it("rejects an invalid model", () => {
+    const parsed = inputSchema.safeParse({ prompt: "x", model: "x;rm -rf" });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects an invalid reviewCommit", () => {
+    const parsed = inputSchema.safeParse({ review: true, reviewCommit: "abc;evil" });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects a non-review call with no prompt", async () => {
+    const result = await handleCodexExec({ mode: "exec", requireGit: false }, REAL_CWD);
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("MISSING_PROMPT");
+  });
+
+  it("allows a review call with no prompt (custom instructions are optional)", async () => {
+    const result = await handleCodexExec({ mode: "exec", review: true, requireGit: false }, REAL_CWD);
+    expect(result.isError).toBeFalsy();
   });
 });

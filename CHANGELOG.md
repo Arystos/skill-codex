@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-06-19
+
+### Added
+- **Model selection** — optional `model` param on `codex_exec` (e.g. `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`), mapped to `codex exec -m`. Omit for the configured default.
+- **Reasoning effort** — optional `reasoningEffort` param (`minimal` | `low` | `medium` | `high` | `xhigh`), mapped to `-c model_reasoning_effort=...`.
+- **Native review** — optional `review` flag runs Codex's diff-scoped `codex exec review` (with `reviewBase` / `reviewCommit` targeting). `/codex-review` documents it as an option alongside the default Claude-led review.
+- The response header now shows the model, `effort:<x>`, and a `review`/`resumed` label when those are set.
+
+### Security
+- Validate `model`, `reviewBase`, and `reviewCommit` (as with `sessionId`) so externally-supplied values can't inject extra shell args on the Windows `shell:true` path.
+
+### Notes
+- `prompt` is now optional only when `review` is set; all other calls still require it. Verified against codex-cli 0.133.0.
+
 ## [0.6.0] - 2026-06-19
 
 ### Added

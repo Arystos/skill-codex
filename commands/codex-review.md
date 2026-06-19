@@ -20,6 +20,8 @@ You are invoking Codex for a second-opinion code review. Follow these steps:
    - `mode`: "exec"
    - `requireGit`: true
 
+   **Option B (native Codex review):** Default to the Claude-assembled diff above, since the user prefers Claude-led review. You may instead call `codex_exec` with `review: true` to use `codex exec review`; add `reviewBase` for a branch or `reviewCommit` for a SHA. The prompt is optional focus instructions.
+
 4. **Assign an overall verdict** from the findings (you are the final judge — weigh Codex's findings, don't just echo them):
    - **BLOCKED** — one or more CRITICAL/HIGH issues that should be fixed before merge
    - **WARNING** — only MEDIUM/LOW issues; safe to proceed with awareness
