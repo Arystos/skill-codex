@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runSetup, runUninstall } from "../setup/setup.js";
 import { runVerification } from "../setup/verify.js";
+import { startServer } from "../src/server.js";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -61,6 +62,16 @@ Usage:
 
     case "uninstall": {
       await runUninstall();
+      break;
+    }
+
+    case "mcp":
+    case "serve": {
+      // Start the MCP server over stdio. Used by the Claude Code plugin's
+      // .mcp.json via `npx -y skill-codex mcp`. Must NOT write to stdout
+      // (that's the JSON-RPC channel) or call process.exit — the process
+      // stays alive for the stdio transport.
+      await startServer();
       break;
     }
 

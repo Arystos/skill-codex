@@ -1,6 +1,6 @@
 {
   "name": "skill-codex",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Cross-platform Claude Code skill that integrates OpenAI Codex CLI for code review, task delegation, and consultation via MCP",
   "type": "module",
   "main": "./dist/index.js",
@@ -28,6 +28,8 @@
     "commands",
     "hooks",
     "skills",
+    ".claude-plugin",
+    ".mcp.json",
     "README.md",
     "LICENSE"
   ],

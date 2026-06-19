@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "skill-codex": {
+      "command": "npx",
+      "args": ["-y", "skill-codex", "mcp"],
+      "env": {}
+    }
+  }
+}
