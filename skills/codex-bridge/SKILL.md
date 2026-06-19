@@ -4,7 +4,7 @@ description: Delegates bounded implementation work to OpenAI Codex via the codex
 license: MIT
 metadata:
   author: Arystos
-  version: 0.6.0
+  version: 0.7.0
   mcp-server: skill-codex
   category: developer-tools
 ---
@@ -138,6 +138,11 @@ The skill-codex MCP server exposes exactly one tool: `codex_exec`.
 | `mode` | `"exec"` \| `"full-auto"` | no (default `"exec"`) | `exec` is read-only; `full-auto` allows file writes |
 | `sandbox` | `"read-only"` \| `"workspace-write"` \| `"danger-full-access"` | no | Explicit sandbox policy; overrides `mode`. Use `danger-full-access` only when you understand the risk |
 | `sessionId` | string | no | Resume a prior Codex session (the thread id from a previous response) so Codex keeps context across calls |
+| `model` | string | no | Codex model to use. Omit to use Codex's configured default |
+| `reasoningEffort` | `"minimal"` \| `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` | no | How much reasoning effort Codex spends. Omit for the model's default |
+| `review` | boolean | no | Run Codex's native diff-scoped review (`codex exec review`) instead of a freeform prompt |
+| `reviewBase` | string | no | With `review`: diff against this base branch |
+| `reviewCommit` | string | no | With `review`: review the changes introduced by this commit SHA |
 | `cwd` | string | no | Working directory for Codex |
 | `timeoutMs` | number | no | Override default 5min timeout |
 | `requireGit` | boolean | no | Refuse to run if cwd is not a git repo (recommended `true` for `full-auto`) |

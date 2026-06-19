@@ -13,7 +13,7 @@ export const TOOL_DESCRIPTION =
   "Execute a task using OpenAI Codex CLI. Use for code review, implementation tasks, or getting a second opinion. Codex output is a SUGGESTION — evaluate it critically before applying.";
 
 export const inputSchema = z.object({
-  prompt: z.string().describe("The task description for Codex"),
+  prompt: z.string().optional().describe("The task description for Codex"),
   mode: z
     .enum(["exec", "full-auto"])
     .default("exec")
@@ -31,6 +31,33 @@ export const inputSchema = z.object({
     .describe(
       "Resume a prior Codex session by its thread id (returned in a previous response) so Codex retains context across calls.",
     ),
+  model: z
+    .string()
+    .regex(/^[A-Za-z0-9._-]{1,64}$/)
+    .optional()
+    .describe(
+      "Codex model to use (e.g. gpt-5.5, gpt-5.4, gpt-5.4-mini). Omit to use Codex's configured default.",
+    ),
+  reasoningEffort: z
+    .enum(["minimal", "low", "medium", "high", "xhigh"])
+    .optional()
+    .describe("How much reasoning effort Codex spends. Omit for the model's default."),
+  review: z
+    .boolean()
+    .optional()
+    .describe(
+      "Run Codex's native diff-scoped review (`codex exec review`) instead of a freeform prompt. The prompt becomes optional custom review instructions.",
+    ),
+  reviewBase: z
+    .string()
+    .regex(/^[A-Za-z0-9._\/-]{1,128}$/)
+    .optional()
+    .describe("With review: diff against this base branch (default: uncommitted changes)."),
+  reviewCommit: z
+    .string()
+    .regex(/^[0-9a-fA-F]{4,64}$/)
+    .optional()
+    .describe("With review: review the changes introduced by this commit SHA."),
   cwd: z.string().optional().describe("Working directory (defaults to server cwd)"),
   timeoutMs: z.number().optional().describe("Override default timeout in milliseconds"),
   requireGit: z.boolean().default(false).describe("Fail if not inside a git repository"),
@@ -66,6 +93,32 @@ export const TOOL_INPUT_JSON_SCHEMA = {
       description:
         "Resume a prior Codex session by its thread id (returned in a previous response) so Codex retains context across calls.",
     },
+    model: {
+      type: "string",
+      pattern: "^[A-Za-z0-9._-]{1,64}$",
+      description:
+        "Codex model to use (e.g. gpt-5.5, gpt-5.4, gpt-5.4-mini). Omit to use Codex's configured default.",
+    },
+    reasoningEffort: {
+      type: "string",
+      enum: ["minimal", "low", "medium", "high", "xhigh"],
+      description: "How much reasoning effort Codex spends. Omit for the model's default.",
+    },
+    review: {
+      type: "boolean",
+      description:
+        "Run Codex's native diff-scoped review (`codex exec review`) instead of a freeform prompt. The prompt becomes optional custom review instructions.",
+    },
+    reviewBase: {
+      type: "string",
+      pattern: "^[A-Za-z0-9._\\/-]{1,128}$",
+      description: "With review: diff against this base branch (default: uncommitted changes).",
+    },
+    reviewCommit: {
+      type: "string",
+      pattern: "^[0-9a-fA-F]{4,64}$",
+      description: "With review: review the changes introduced by this commit SHA.",
+    },
     cwd: { type: "string", description: "Working directory (defaults to server cwd)" },
     timeoutMs: { type: "number", description: "Override default timeout in milliseconds" },
     requireGit: {
@@ -74,7 +127,7 @@ export const TOOL_INPUT_JSON_SCHEMA = {
       description: "Fail if not inside a git repository",
     },
   },
-  required: ["prompt"],
+  required: [],
 };
 
 function formatError(err: unknown): string {
@@ -96,10 +149,19 @@ function formatRichResponse(
 
   // On resume, no --sandbox is sent (the session keeps its original policy), so
   // labelling it with a specific mode would be misleading — show "resumed" instead.
-  const sandboxLabel = input.sessionId
-    ? "resumed"
-    : (input.sandbox ?? (input.mode === "full-auto" ? "workspace-write" : "read-only"));
-  const metaParts: string[] = [sandboxLabel, cwd];
+  const sandboxLabel = input.sandbox ?? (input.mode === "full-auto" ? "workspace-write" : "read-only");
+  const label = input.review ? "review" : input.sessionId ? "resumed" : sandboxLabel;
+  const metaParts: string[] = [label];
+
+  if (input.model) {
+    metaParts.push(input.model);
+  }
+
+  if (input.reasoningEffort) {
+    metaParts.push(`effort:${input.reasoningEffort}`);
+  }
+
+  metaParts.push(cwd);
 
   if (typeof result.durationMs === "number") {
     metaParts.push(`${(result.durationMs / 1000).toFixed(1)}s`);
@@ -161,6 +223,15 @@ export async function handleCodexExec(
     };
   }
 
+  // `prompt` is optional only for native review (where it's optional custom
+  // instructions). Every other call must supply a prompt.
+  if (!input.review && !input.prompt?.trim()) {
+    return {
+      content: [{ type: "text", text: "[skill-codex error: MISSING_PROMPT] prompt is required unless review is set" }],
+      isError: true,
+    };
+  }
+
   let lockRelease: (() => void) | null = null;
 
   try {
@@ -172,11 +243,16 @@ export async function handleCodexExec(
 
     const result = await withRetry(() =>
       execCodex({
-        prompt: input.prompt,
+        prompt: input.prompt ?? "",
         cwd,
         mode: input.mode,
         sandbox: input.sandbox,
         sessionId: input.sessionId,
+        model: input.model,
+        reasoningEffort: input.reasoningEffort,
+        review: input.review,
+        reviewBase: input.reviewBase,
+        reviewCommit: input.reviewCommit,
         timeoutMs: input.timeoutMs,
         onProgress,
       }),

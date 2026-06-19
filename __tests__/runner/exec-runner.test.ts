@@ -146,6 +146,40 @@ describe("execCodex", () => {
     expect(args).not.toContain("workspace-write");
   });
 
+  it("adds model args when provided", async () => {
+    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const proc = makeMockProcess({ stdoutData: validOutput });
+    mockSpawn.mockReturnValue(proc as ReturnType<typeof spawn>);
+
+    await execCodex({
+      prompt: "do it",
+      cwd: "/tmp",
+      mode: "exec",
+      model: "gpt-5.4-mini",
+    });
+
+    const [_bin, args] = mockSpawn.mock.calls[0];
+    expect(args).toContain("-m");
+    expect(args).toContain("gpt-5.4-mini");
+  });
+
+  it("adds reasoning effort config when provided", async () => {
+    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const proc = makeMockProcess({ stdoutData: validOutput });
+    mockSpawn.mockReturnValue(proc as ReturnType<typeof spawn>);
+
+    await execCodex({
+      prompt: "do it",
+      cwd: "/tmp",
+      mode: "exec",
+      reasoningEffort: "high",
+    });
+
+    const [_bin, args] = mockSpawn.mock.calls[0];
+    expect(args).toContain("-c");
+    expect(args).toContain("model_reasoning_effort=high");
+  });
+
   it("uses exec resume without --sandbox when sessionId is provided", async () => {
     const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
     const proc = makeMockProcess({ stdoutData: validOutput });
@@ -165,6 +199,90 @@ describe("execCodex", () => {
     expect(args).toContain("--skip-git-repo-check");
     expect(args).not.toContain("--sandbox");
     expect(args).toContain("-");
+  });
+
+  it("uses native review with uncommitted changes and no sandbox", async () => {
+    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const proc = makeMockProcess({ stdoutData: validOutput });
+    mockSpawn.mockReturnValue(proc as ReturnType<typeof spawn>);
+
+    await execCodex({
+      prompt: "focus on auth",
+      cwd: "/tmp",
+      mode: "exec",
+      sandbox: "danger-full-access",
+      review: true,
+    });
+
+    const [_bin, args] = mockSpawn.mock.calls[0];
+    expect(args.slice(0, 4)).toEqual(["exec", "review", "--json", "--skip-git-repo-check"]);
+    expect(args).toContain("--uncommitted");
+    expect(args).not.toContain("--sandbox");
+    expect(args).not.toContain("danger-full-access");
+    expect(args).toContain("-");
+  });
+
+  it("uses native review base when provided", async () => {
+    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const proc = makeMockProcess({ stdoutData: validOutput });
+    mockSpawn.mockReturnValue(proc as ReturnType<typeof spawn>);
+
+    await execCodex({
+      prompt: "focus on auth",
+      cwd: "/tmp",
+      mode: "exec",
+      review: true,
+      reviewBase: "main",
+    });
+
+    const [_bin, args] = mockSpawn.mock.calls[0];
+    expect(args).toContain("--base");
+    expect(args).toContain("main");
+    expect(args).not.toContain("--uncommitted");
+    expect(args).not.toContain("--commit");
+  });
+
+  it("uses native review commit when provided without a base", async () => {
+    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const proc = makeMockProcess({ stdoutData: validOutput });
+    mockSpawn.mockReturnValue(proc as ReturnType<typeof spawn>);
+
+    await execCodex({
+      prompt: "focus on auth",
+      cwd: "/tmp",
+      mode: "exec",
+      review: true,
+      reviewCommit: "abc1234",
+    });
+
+    const [_bin, args] = mockSpawn.mock.calls[0];
+    expect(args).toContain("--commit");
+    expect(args).toContain("abc1234");
+    expect(args).not.toContain("--uncommitted");
+    expect(args).not.toContain("--base");
+  });
+
+  it("applies model and reasoning effort to native review", async () => {
+    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const proc = makeMockProcess({ stdoutData: validOutput });
+    mockSpawn.mockReturnValue(proc as ReturnType<typeof spawn>);
+
+    await execCodex({
+      prompt: "focus on auth",
+      cwd: "/tmp",
+      mode: "exec",
+      review: true,
+      model: "gpt-5.5",
+      reasoningEffort: "xhigh",
+    });
+
+    const [_bin, args] = mockSpawn.mock.calls[0];
+    expect(args.slice(0, 4)).toEqual(["exec", "review", "--json", "--skip-git-repo-check"]);
+    expect(args).toContain("-m");
+    expect(args).toContain("gpt-5.5");
+    expect(args).toContain("-c");
+    expect(args).toContain("model_reasoning_effort=xhigh");
+    expect(args).not.toContain("--sandbox");
   });
 
   it("injects windows.sandbox=unelevated config when running on Windows", async () => {
