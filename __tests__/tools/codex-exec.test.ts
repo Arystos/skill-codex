@@ -222,7 +222,6 @@ describe("handleCodexExec", () => {
   it("passes model, reasoningEffort, and review options through to execCodex", async () => {
     await handleCodexExec(
       {
-        prompt: "focus on auth",
         mode: "exec",
         model: "gpt-5.4",
         reasoningEffort: "xhigh",

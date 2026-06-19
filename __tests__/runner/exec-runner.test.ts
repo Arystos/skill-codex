@@ -207,7 +207,7 @@ describe("execCodex", () => {
     mockSpawn.mockReturnValue(proc as ReturnType<typeof spawn>);
 
     await execCodex({
-      prompt: "focus on auth",
+      prompt: "",
       cwd: "/tmp",
       mode: "exec",
       sandbox: "danger-full-access",
@@ -219,7 +219,27 @@ describe("execCodex", () => {
     expect(args).toContain("--uncommitted");
     expect(args).not.toContain("--sandbox");
     expect(args).not.toContain("danger-full-access");
+    // A scope flag forbids a PROMPT, so the "-" stdin sentinel must NOT be sent.
+    expect(args).not.toContain("-");
+  });
+
+  it("uses prompt-only review (custom instructions, no scope flag)", async () => {
+    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const proc = makeMockProcess({ stdoutData: validOutput });
+    mockSpawn.mockReturnValue(proc as ReturnType<typeof spawn>);
+
+    await execCodex({
+      prompt: "focus on the auth changes",
+      cwd: "/tmp",
+      mode: "exec",
+      review: true,
+    });
+
+    const [_bin, args] = mockSpawn.mock.calls[0];
+    expect(args.slice(0, 4)).toEqual(["exec", "review", "--json", "--skip-git-repo-check"]);
+    // Custom instructions go over stdin ("-"); no scope flag is added.
     expect(args).toContain("-");
+    expect(args).not.toContain("--uncommitted");
   });
 
   it("uses native review base when provided", async () => {
