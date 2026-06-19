@@ -20,8 +20,10 @@ export const LOCK_FILENAME = ".skill-codex.lock";
 
 // Live, human-readable per-run log. Codex emits JSONL that the MCP transport
 // buffers until completion; tailing this file shows progress in real time.
-// Override the location (absolute path) with SKILL_CODEX_LOG.
-export const LOG_FILENAME = ".skill-codex.log";
+// Defaults to a per-workspace file under the OS temp dir so a run never writes
+// a growing log into the user's working repo. Override with an absolute path
+// via SKILL_CODEX_LOG. The resolved path is printed at run start and returned
+// in the tool response, so it stays discoverable.
 export const LOG_ENV = "SKILL_CODEX_LOG";
 
 export const TRIVIAL_DIFF_THRESHOLD = 5; // lines

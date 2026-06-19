@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import os from "node:os";
 import { formatLogLines, resolveLogPath } from "../../src/util/live-logger.js";
 import { LOG_ENV } from "../../src/config/constants.js";
 
@@ -84,11 +85,26 @@ describe("resolveLogPath", () => {
     }
   });
 
-  it("defaults to <cwd>/.skill-codex.log", () => {
+  it("defaults to a per-workspace file under the OS temp dir, never the cwd", () => {
     const prev = process.env[LOG_ENV];
     delete process.env[LOG_ENV];
     try {
-      expect(resolveLogPath("/some/cwd")).toMatch(/[\\/]\.skill-codex\.log$/);
+      const p = resolveLogPath("/some/project/cwd");
+      expect(p.startsWith(os.tmpdir())).toBe(true);
+      expect(p).not.toMatch(/[\\/]some[\\/]project[\\/]cwd[\\/]/);
+      expect(p).toMatch(/\.log$/);
+    } finally {
+      if (prev !== undefined) process.env[LOG_ENV] = prev;
+    }
+  });
+
+  it("is stable for one workspace and distinct across workspaces", () => {
+    const prev = process.env[LOG_ENV];
+    delete process.env[LOG_ENV];
+    try {
+      expect(resolveLogPath("/a/proj")).toBe(resolveLogPath("/a/proj"));
+      // same basename, different full path -> different hash -> distinct file
+      expect(resolveLogPath("/a/proj")).not.toBe(resolveLogPath("/b/proj"));
     } finally {
       if (prev !== undefined) process.env[LOG_ENV] = prev;
     }

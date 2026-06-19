@@ -1,6 +1,8 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { LOG_FILENAME, LOG_ENV } from "../config/constants.js";
+import { createHash } from "node:crypto";
+import { LOG_ENV } from "../config/constants.js";
 import { oneLine } from "./text.js";
 
 export interface LiveLoggerOptions {
@@ -18,13 +20,21 @@ export interface LiveLogger {
 }
 
 /**
- * Resolve the live-log path: `SKILL_CODEX_LOG` override (absolute), else
- * `<cwd>/.skill-codex.log`.
+ * Resolve the live-log path:
+ *   1. `SKILL_CODEX_LOG` override (absolute path), else
+ *   2. a per-workspace file under the OS temp dir — so a run never writes a
+ *      growing log file into the user's working repo. The filename is the
+ *      workspace basename plus a short hash of the full path, so the same
+ *      workspace appends to one tail-able log and distinct workspaces don't
+ *      collide. The resolved path is printed at run start and returned in the
+ *      tool response, so it stays discoverable.
  */
 export function resolveLogPath(cwd: string): string {
   const override = process.env[LOG_ENV];
   if (override && override.trim()) return path.resolve(override.trim());
-  return path.join(cwd, LOG_FILENAME);
+  const base = path.basename(cwd).replace(/[^a-zA-Z0-9._-]/g, "_") || "run";
+  const hash = createHash("sha1").update(cwd).digest("hex").slice(0, 8);
+  return path.join(os.tmpdir(), "skill-codex", `${base}-${hash}.log`);
 }
 
 /**
@@ -97,6 +107,7 @@ export function createLiveLogger(opts: LiveLoggerOptions): LiveLogger {
 
   let stream: fs.WriteStream | null = null;
   try {
+    fs.mkdirSync(path.dirname(logPath), { recursive: true });
     stream = fs.createWriteStream(logPath, { flags: "a" });
   } catch {
     stream = null;
