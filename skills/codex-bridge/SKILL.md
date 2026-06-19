@@ -4,7 +4,7 @@ description: Delegates bounded implementation work to OpenAI Codex via the codex
 license: MIT
 metadata:
   author: Arystos
-  version: 0.4.1
+  version: 0.6.0
   mcp-server: skill-codex
   category: developer-tools
 ---
@@ -72,7 +72,7 @@ Use when the user asks for a bounded implementation task with a clear spec.
    requireGit: true
    ```
 
-5. **Review Codex's output critically.** Run `git diff` to see exactly what changed. Check for:
+5. **Review Codex's output critically.** Run `git status --short` (catches new files that `git diff` misses), then `git diff`, to see exactly what changed. Check for:
    - Introduced bugs, logic errors, or regressions
    - Style violations against the project's conventions
    - Files modified outside the requested scope
@@ -87,10 +87,10 @@ Use when the user wants a second-opinion review of a diff, branch, or commit.
 **Steps:**
 
 1. **Determine the scope of the review:**
-   - No argument → `git diff` (unstaged), then `git diff --cached` (staged)
+   - No argument → run `git status --short` first to catch new untracked files (`??`), then collect `git diff` (unstaged) + `git diff --cached` (staged), and include the contents of any new untracked files — plain `git diff` is blind to them
    - Branch name → `git diff <branch>...HEAD`
    - SHA → `git show <sha>`
-   - If the diff is empty, tell the user and stop.
+   - If there are no changes at all, tell the user and stop.
 
 2. **Check diff size.** If the diff exceeds ~50,000 characters, summarize it first and warn the user that Codex will see a truncated version.
 
@@ -101,9 +101,11 @@ Use when the user wants a second-opinion review of a diff, branch, or commit.
    requireGit: true
    ```
 
-4. **Present findings grouped by severity.** For each finding, add your own assessment: agree, disagree with reasoning, or add nuance. Note anything Codex missed that you think is important. End with a summary of actionable items.
+4. **Assign an overall verdict** (you are the final judge, not a relay): **BLOCKED** (≥1 CRITICAL/HIGH), **WARNING** (only MEDIUM/LOW), or **APPROVED** (none). State it explicitly, e.g. `Verdict: BLOCKED — 1 CRITICAL`.
 
-5. **Offer to fix any confirmed issues.**
+5. **Present findings grouped by severity.** For each finding, add your own assessment: agree, disagree with reasoning, or add nuance. Note anything Codex missed that you think is important. End with a summary of actionable items.
+
+6. **If BLOCKED or WARNING, offer a bounded fix loop** (with the user's go-ahead): fix the issues you agree are real, re-run `codex_exec` on the updated diff to confirm the fixes and catch regressions, and repeat until APPROVED or **3 rounds max** — then stop and summarize what's left. The cap prevents runaway Codex quota use.
 
 ### Workflow 3: Consult for a second opinion (`consult`)
 
@@ -135,7 +137,7 @@ The skill-codex MCP server exposes exactly one tool: `codex_exec`.
 | `prompt` | string | yes | The prompt to send to Codex |
 | `mode` | `"exec"` \| `"full-auto"` | no (default `"exec"`) | `exec` is read-only; `full-auto` allows file writes |
 | `cwd` | string | no | Working directory for Codex |
-| `timeoutMs` | number | no | Override default 10min timeout |
+| `timeoutMs` | number | no | Override default 5min timeout |
 | `requireGit` | boolean | no | Refuse to run if cwd is not a git repo (recommended `true` for `full-auto`) |
 
 **Modes:**
@@ -191,7 +193,7 @@ The skill-codex MCP server exposes exactly one tool: `codex_exec`.
 - Cause: Codex is running inside Codex (nested `codex_exec` calls).
 - Solution: Do not delegate from within a Codex-initiated session. Claude should handle the task directly.
 
-**Error: Timeout (10 min default)**
+**Error: Timeout (5 min default)**
 - Cause: Task is too large or Codex is stuck.
 - Solution: Break the task into smaller delegations, or override `timeoutMs` for genuinely long-running work.
 
@@ -201,7 +203,8 @@ The skill-codex MCP server exposes exactly one tool: `codex_exec`.
 ## Critical rules
 
 - **Never invoke Codex silently.** Always tell the user what you are delegating and why.
-- **Always `git diff` after `full-auto` runs.** Verify scope and correctness before presenting results.
+- **After `full-auto` runs, check `git status --short` then `git diff`.** `git status` catches new files `git diff` misses; verify scope and correctness before presenting results.
+- **Fail soft.** If `codex_exec` errors (Codex missing, auth expired, offline), say so and continue with Claude-only work — never block the user on a missing Codex.
 - **Codex is a peer, not an authority.** Every output must pass your review.
 - **Do not delegate trivial tasks** (<50 lines or <2 minutes of direct work). Overhead exceeds benefit.
 - **Pair `full-auto` with `requireGit: true`** so Codex refuses to touch non-git directories.

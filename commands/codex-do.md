@@ -10,7 +10,7 @@ You are delegating an implementation task to Codex. Follow these steps:
 
 2. **Evaluate if the task is suitable for delegation**:
    - **Good for Codex**: repetitive bulk changes, boilerplate generation, test writing for existing code, migration scripts, file format conversions, well-defined single-file edits
-   - **Keep for yourself**: architectural decisions, cross-module refactoring, tasks requiring deep conversation context, ambiguous requirements, tasks under 50 lines
+   - **Keep for yourself**: architectural decisions, cross-module refactoring, tasks requiring deep conversation context, ambiguous requirements, and trivial edits you'd finish faster yourself than you can write a spec for
    - If the task is poorly scoped, explain why and suggest how to break it down.
 
 3. **Prepare a precise, self-contained prompt** for Codex. Include:
@@ -25,7 +25,8 @@ You are delegating an implementation task to Codex. Follow these steps:
    - `requireGit`: true
 
 5. **Review Codex's output critically**:
-   - Run `git diff` to see exactly what Codex changed
+   - Run `git status --short` **first** to see ALL changes, including **newly-created files** (lines starting with `??`). Codex in full-auto mode often creates new files, and `git diff` alone is blind to untracked files.
+   - Run `git diff` for modifications to tracked files, and **read any new untracked files directly** to review their contents.
    - Check for introduced bugs, regressions, or style violations
    - Verify it matches the requested changes
    - Verify it doesn't modify files outside the requested scope
@@ -39,6 +40,6 @@ You are delegating an implementation task to Codex. Follow these steps:
 ## Important
 
 - Codex runs in **full-auto mode** — it CAN modify files in the workspace
-- Always `git diff` after Codex runs to verify what changed
+- Always run `git status --short` **and** `git diff` after Codex runs — `git status` catches new files that `git diff` misses
 - Codex is a **peer, not an authority** — review all output before accepting
 - For complex multi-file tasks, consider doing it yourself instead
