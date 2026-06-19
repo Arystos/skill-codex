@@ -41,11 +41,3 @@ jobs:
       - run: npm ci
       # Enforces the 80% thresholds in vitest.config.ts — fails CI if coverage drops.
       - run: npm run test:coverage
-
-      # Optional: publishes the coverage badge. No-op until the repo is enabled on
-      # codecov.io (see DISTRIBUTION.md); never fails CI if unconfigured.
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          directory: ./coverage
-          fail_ci_if_error: false
