@@ -3,8 +3,6 @@
 [![npm version](https://img.shields.io/npm/v/skill-codex)](https://www.npmjs.com/package/skill-codex)
 [![npm downloads](https://img.shields.io/npm/dm/skill-codex)](https://www.npmjs.com/package/skill-codex)
 ![CI](https://github.com/Arystos/skill-codex/actions/workflows/ci.yml/badge.svg)
-<!-- After enabling the repo on codecov.io (see DISTRIBUTION.md), uncomment:
-[![codecov](https://codecov.io/gh/Arystos/skill-codex/graph/badge.svg)](https://codecov.io/gh/Arystos/skill-codex) -->
 ![Coverage](https://img.shields.io/badge/coverage-80%25%2B%20enforced-brightgreen)
 ![Windows](https://img.shields.io/badge/Windows-0078D4?style=flat&logo=windows&logoColor=white)
 ![macOS](https://img.shields.io/badge/macOS-000000?style=flat&logo=apple&logoColor=white)

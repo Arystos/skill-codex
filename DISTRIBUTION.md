@@ -12,8 +12,7 @@ A prioritized, evidence-backed plan to get skill-codex in front of the people wh
 - [x] Test suite (19 files, 149 tests) + 80% coverage gate enforced in CI
 - [x] MIT license
 - [x] README leads with the wedge, an honest comparison table, and the "why not just use Claude subagents?" answer
-- [ ] **Demo GIF** — record ~20s of `/codex-review` catching a *real* bug; save to `docs/demo.gif`; uncomment the image line near the top of the README. Highest-impact single asset. (Tools: ScreenToGif on Windows, or asciinema → agg.)
-- [ ] Enable Codecov (codecov.io → add `Arystos/skill-codex`), then uncomment the Codecov badge in the README. Add a `CODECOV_TOKEN` repo secret only if tokenless upload doesn't work.
+- [x] **Demo GIFs** — done: animated Remotion trailer + per-feature clips in `docs/` and the README "See it in action" section.
 - [ ] Publish `v0.6.0` to npm (`npm publish`) so the version/downloads badges reflect the latest.
 - [ ] Smoke-test `npx skill-codex setup` from a clean machine on Windows + macOS/Linux.
 
