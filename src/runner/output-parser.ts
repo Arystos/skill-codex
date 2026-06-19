@@ -21,6 +21,7 @@ export interface CodexResult {
   readonly activity: ActivityEntry[];
   readonly usage: TokenUsage | null;
   readonly raw: string;
+  readonly sessionId?: string;
   /** Path to the live run log, attached by execCodex. */
   readonly logPath?: string;
   /** Wall-clock duration of the Codex run in ms, attached by execCodex. */
@@ -36,11 +37,17 @@ export function parseCodexOutput(raw: string): CodexResult {
   const messages: string[] = [];
   const activity: ActivityEntry[] = [];
   let resultContent: string | null = null;
+  let sessionId: string | undefined;
   let usage: TokenUsage | null = null;
 
   for (const line of lines) {
     try {
       const parsed = JSON.parse(line);
+
+      if (parsed.type === "thread.started" && typeof parsed.thread_id === "string") {
+        sessionId = parsed.thread_id;
+        continue;
+      }
 
       // Extract token usage from turn.completed events
       if (parsed.type === "turn.completed" && parsed.usage) {
@@ -195,5 +202,6 @@ export function parseCodexOutput(raw: string): CodexResult {
     activity,
     usage,
     raw,
+    sessionId,
   };
 }

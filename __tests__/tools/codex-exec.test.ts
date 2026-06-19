@@ -18,7 +18,7 @@ vi.mock("../../src/runner/retry.js", () => ({
 import { runPreflight } from "../../src/guards/preflight.js";
 import { execCodex } from "../../src/runner/exec-runner.js";
 import { withRetry } from "../../src/runner/retry.js";
-import { handleCodexExec } from "../../src/tools/codex-exec.js";
+import { handleCodexExec, inputSchema } from "../../src/tools/codex-exec.js";
 
 const mockRunPreflight = vi.mocked(runPreflight);
 const mockExecCodex = vi.mocked(execCodex);
@@ -50,6 +50,18 @@ describe("handleCodexExec", () => {
     // Response is wrapped in formatRichResponse with metadata header
     expect(result.content[0].text).toContain("Review complete");
     expect(result.content[0].text).toContain("[read-only");
+  });
+
+  it("accepts sandbox and sessionId in the schema while keeping mode defaulted to exec", () => {
+    const parsed = inputSchema.parse({
+      prompt: "review this",
+      sandbox: "danger-full-access",
+      sessionId: "thread-123",
+    });
+
+    expect(parsed.mode).toBe("exec");
+    expect(parsed.sandbox).toBe("danger-full-access");
+    expect(parsed.sessionId).toBe("thread-123");
   });
 
   it("returns error for invalid cwd", async () => {
@@ -137,5 +149,39 @@ describe("handleCodexExec", () => {
 
     expect(result.content).toHaveLength(1);
     expect(result.content[0].type).toBe("text");
+  });
+
+  it("passes sandbox and sessionId through to execCodex", async () => {
+    mockExecCodex.mockResolvedValue({
+      content: "Continued",
+      activity: [],
+      usage: null,
+      raw: "",
+      sessionId: "thread-123",
+    });
+
+    const result = await handleCodexExec(
+      {
+        prompt: "continue",
+        mode: "full-auto",
+        sandbox: "danger-full-access",
+        sessionId: "thread-123",
+        requireGit: false,
+      },
+      REAL_CWD,
+    );
+
+    expect(mockExecCodex).toHaveBeenCalledOnce();
+    expect(mockExecCodex).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "full-auto",
+        sandbox: "danger-full-access",
+        sessionId: "thread-123",
+      }),
+    );
+    expect(result.content[0].text).toContain("[danger-full-access");
+    expect(result.content[0].text).toContain(
+      "session: thread-123 (pass as sessionId to continue this conversation)",
+    );
   });
 });

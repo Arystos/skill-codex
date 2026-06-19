@@ -97,7 +97,7 @@ describe("execCodex", () => {
     expect(mockSpawn).not.toHaveBeenCalled();
   });
 
-  it("passes correct args for exec mode (includes --sandbox, read-only)", async () => {
+  it("passes correct args for a fresh exec run (includes --sandbox, read-only)", async () => {
     const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as any);
@@ -126,6 +126,45 @@ describe("execCodex", () => {
     expect(args).toContain("workspace-write");
     expect(args).not.toContain("--full-auto");
     expect(args).not.toContain("read-only");
+  });
+
+  it("lets explicit sandbox override mode", async () => {
+    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const proc = makeMockProcess({ stdoutData: validOutput });
+    mockSpawn.mockReturnValue(proc as any);
+
+    await execCodex({
+      prompt: "do it",
+      cwd: "/tmp",
+      mode: "full-auto",
+      sandbox: "danger-full-access",
+    });
+
+    const [_bin, args] = mockSpawn.mock.calls[0];
+    expect(args).toContain("--sandbox");
+    expect(args).toContain("danger-full-access");
+    expect(args).not.toContain("workspace-write");
+  });
+
+  it("uses exec resume without --sandbox when sessionId is provided", async () => {
+    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const proc = makeMockProcess({ stdoutData: validOutput });
+    mockSpawn.mockReturnValue(proc as any);
+
+    await execCodex({
+      prompt: "continue",
+      cwd: "/tmp",
+      mode: "exec",
+      sandbox: "danger-full-access",
+      sessionId: "session-123",
+    });
+
+    const [_bin, args] = mockSpawn.mock.calls[0];
+    expect(args.slice(0, 3)).toEqual(["exec", "resume", "session-123"]);
+    expect(args).toContain("--json");
+    expect(args).toContain("--skip-git-repo-check");
+    expect(args).not.toContain("--sandbox");
+    expect(args).toContain("-");
   });
 
   it("injects windows.sandbox=unelevated config when running on Windows", async () => {

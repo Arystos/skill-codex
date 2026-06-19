@@ -35,6 +35,15 @@ describe("parseCodexOutput", () => {
     expect(result.content).toBe("Final result");
   });
 
+  it("captures session id from thread.started", () => {
+    const jsonl = [
+      '{"type":"thread.started","thread_id":"abc-123"}',
+      '{"type":"result","content":"Final result"}',
+    ].join("\n");
+    const result = parseCodexOutput(jsonl);
+    expect(result.sessionId).toBe("abc-123");
+  });
+
   it("accumulates when multiple messages exist", () => {
     const jsonl = [
       '{"type":"message","content":"First"}',

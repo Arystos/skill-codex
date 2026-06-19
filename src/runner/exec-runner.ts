@@ -26,6 +26,8 @@ export interface ExecParams {
   readonly prompt: string;
   readonly cwd: string;
   readonly mode: "exec" | "full-auto";
+  readonly sandbox?: "read-only" | "workspace-write" | "danger-full-access";
+  readonly sessionId?: string;
   readonly timeoutMs?: number;
   /**
    * Optional live-progress sink. Called with a short status line each time
@@ -79,17 +81,23 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
 
   return new Promise((resolve, reject) => {
     const timeoutMs = getTimeout(params.timeoutMs);
-    const args: string[] = ["exec", "--json", "--skip-git-repo-check"];
-
-    // `--full-auto` was deprecated in Codex ~v0.131 (hidden alias that prints a
-    // warning). `--sandbox workspace-write` is the documented replacement; in
-    // non-interactive `exec` there are no approval prompts, so it matches the
-    // old full-auto write behavior.
-    if (params.mode === "full-auto") {
-      args.push("--sandbox", "workspace-write");
-    } else {
-      args.push("--sandbox", "read-only");
-    }
+    const sandbox =
+      params.sandbox ?? (params.mode === "full-auto" ? "workspace-write" : "read-only");
+    const args: string[] = params.sessionId
+      ? [
+          "exec",
+          "resume",
+          params.sessionId,
+          "--json",
+          "--skip-git-repo-check",
+        ]
+      : [
+          "exec",
+          "--json",
+          "--skip-git-repo-check",
+          "--sandbox",
+          sandbox,
+        ];
 
     // Platform-specific sandbox config (e.g. windows.sandbox=unelevated to work
     // around Codex's broken elevated Windows sandbox). Empty on non-Windows.

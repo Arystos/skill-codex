@@ -18,6 +18,18 @@ export const inputSchema = z.object({
     .enum(["exec", "full-auto"])
     .default("exec")
     .describe("exec = read-only with confirmation, full-auto = can write files"),
+  sandbox: z
+    .enum(["read-only", "workspace-write", "danger-full-access"])
+    .optional()
+    .describe(
+      "Explicit Codex sandbox policy; overrides mode. read-only = no writes, workspace-write = write within cwd, danger-full-access = unrestricted (use with care).",
+    ),
+  sessionId: z
+    .string()
+    .optional()
+    .describe(
+      "Resume a prior Codex session by its thread id (returned in a previous response) so Codex retains context across calls.",
+    ),
   cwd: z.string().optional().describe("Working directory (defaults to server cwd)"),
   timeoutMs: z.number().optional().describe("Override default timeout in milliseconds"),
   requireGit: z.boolean().default(false).describe("Fail if not inside a git repository"),
@@ -42,8 +54,9 @@ function formatRichResponse(
 ): string {
   const lines: string[] = [];
 
-  const modeLabel = input.mode === "full-auto" ? "full-auto" : "read-only";
-  const metaParts: string[] = [modeLabel, cwd];
+  const sandboxLabel =
+    input.sandbox ?? (input.mode === "full-auto" ? "workspace-write" : "read-only");
+  const metaParts: string[] = [sandboxLabel, cwd];
 
   if (typeof result.durationMs === "number") {
     metaParts.push(`${(result.durationMs / 1000).toFixed(1)}s`);
@@ -62,6 +75,10 @@ function formatRichResponse(
   }
 
   lines.push(`[${metaParts.join(" \u2502 ")}]`);
+
+  if (result.sessionId) {
+    lines.push(`  session: ${result.sessionId} (pass as sessionId to continue this conversation)`);
+  }
 
   if (result.logPath) {
     lines.push(`  live log: ${result.logPath}`);
@@ -115,6 +132,8 @@ export async function handleCodexExec(
         prompt: input.prompt,
         cwd,
         mode: input.mode,
+        sandbox: input.sandbox,
+        sessionId: input.sessionId,
         timeoutMs: input.timeoutMs,
         onProgress,
       }),
