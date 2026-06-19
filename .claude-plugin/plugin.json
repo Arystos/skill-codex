@@ -7,10 +7,7 @@
     "url": "https://github.com/Arystos"
   },
   "homepage": "https://github.com/Arystos/skill-codex",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Arystos/skill-codex.git"
-  },
+  "repository": "https://github.com/Arystos/skill-codex.git",
   "license": "MIT",
   "keywords": ["codex", "code-review", "task-delegation", "mcp", "developer-tools", "llm-tools"]
 }
