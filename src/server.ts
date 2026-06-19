@@ -4,11 +4,17 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { TOOL_NAME, TOOL_DESCRIPTION, inputSchema, handleCodexExec } from "./tools/codex-exec.js";
+import {
+  TOOL_NAME,
+  TOOL_DESCRIPTION,
+  TOOL_INPUT_JSON_SCHEMA,
+  inputSchema,
+  handleCodexExec,
+} from "./tools/codex-exec.js";
 
 export function createServer(cwd: string): Server {
   const server = new Server(
-    { name: "skill-codex", version: "0.5.0" },
+    { name: "skill-codex", version: "0.6.0" },
     { capabilities: { tools: {} } },
   );
 
@@ -17,26 +23,7 @@ export function createServer(cwd: string): Server {
       {
         name: TOOL_NAME,
         description: TOOL_DESCRIPTION,
-        inputSchema: {
-          type: "object" as const,
-          properties: {
-            prompt: { type: "string", description: "The task description for Codex" },
-            mode: {
-              type: "string",
-              enum: ["exec", "full-auto"],
-              default: "exec",
-              description: "exec = read-only, full-auto = can write files",
-            },
-            cwd: { type: "string", description: "Working directory (defaults to server cwd)" },
-            timeoutMs: { type: "number", description: "Override default timeout in milliseconds" },
-            requireGit: {
-              type: "boolean",
-              default: false,
-              description: "Fail if not inside a git repository",
-            },
-          },
-          required: ["prompt"],
-        },
+        inputSchema: TOOL_INPUT_JSON_SCHEMA,
       },
     ],
   }));

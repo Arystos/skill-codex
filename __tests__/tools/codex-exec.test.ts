@@ -18,7 +18,7 @@ vi.mock("../../src/runner/retry.js", () => ({
 import { runPreflight } from "../../src/guards/preflight.js";
 import { execCodex } from "../../src/runner/exec-runner.js";
 import { withRetry } from "../../src/runner/retry.js";
-import { handleCodexExec, inputSchema } from "../../src/tools/codex-exec.js";
+import { handleCodexExec, inputSchema, TOOL_INPUT_JSON_SCHEMA } from "../../src/tools/codex-exec.js";
 
 const mockRunPreflight = vi.mocked(runPreflight);
 const mockExecCodex = vi.mocked(execCodex);
@@ -62,6 +62,16 @@ describe("handleCodexExec", () => {
     expect(parsed.mode).toBe("exec");
     expect(parsed.sandbox).toBe("danger-full-access");
     expect(parsed.sessionId).toBe("thread-123");
+  });
+
+  it("publishes a tools/list JSON schema that stays in sync with the zod inputSchema", () => {
+    // The MCP-advertised schema (server.ts) and the runtime validator must not
+    // drift — otherwise params validate at the handler but stay invisible to clients.
+    const zodKeys = Object.keys(inputSchema.shape).sort();
+    const jsonKeys = Object.keys(TOOL_INPUT_JSON_SCHEMA.properties).sort();
+    expect(jsonKeys).toEqual(zodKeys);
+    expect(jsonKeys).toContain("sandbox");
+    expect(jsonKeys).toContain("sessionId");
   });
 
   it("returns error for invalid cwd", async () => {

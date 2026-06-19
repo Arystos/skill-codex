@@ -37,6 +37,44 @@ export const inputSchema = z.object({
 
 export type CodexExecInput = z.infer<typeof inputSchema>;
 
+/**
+ * JSON Schema advertised to MCP clients in the `tools/list` response. Kept here
+ * next to the zod `inputSchema` (the runtime validator) so the two can't drift —
+ * a sync test asserts their property sets match. The MCP SDK wants a plain JSON
+ * Schema object, so we hand-write it rather than deriving it at runtime.
+ */
+export const TOOL_INPUT_JSON_SCHEMA = {
+  type: "object" as const,
+  properties: {
+    prompt: { type: "string", description: "The task description for Codex" },
+    mode: {
+      type: "string",
+      enum: ["exec", "full-auto"],
+      default: "exec",
+      description: "exec = read-only, full-auto = can write files",
+    },
+    sandbox: {
+      type: "string",
+      enum: ["read-only", "workspace-write", "danger-full-access"],
+      description:
+        "Explicit Codex sandbox policy; overrides mode. read-only = no writes, workspace-write = write within cwd, danger-full-access = unrestricted (use with care).",
+    },
+    sessionId: {
+      type: "string",
+      description:
+        "Resume a prior Codex session by its thread id (returned in a previous response) so Codex retains context across calls.",
+    },
+    cwd: { type: "string", description: "Working directory (defaults to server cwd)" },
+    timeoutMs: { type: "number", description: "Override default timeout in milliseconds" },
+    requireGit: {
+      type: "boolean",
+      default: false,
+      description: "Fail if not inside a git repository",
+    },
+  },
+  required: ["prompt"],
+};
+
 function formatError(err: unknown): string {
   if (err instanceof BridgeError) {
     return `[skill-codex error: ${err.code}] ${err.message}`;
