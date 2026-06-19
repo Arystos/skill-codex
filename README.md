@@ -52,6 +52,28 @@ Because a subagent is the **same model**. When Claude reviews Claude, you inheri
 
 *A snapshot, not a leaderboard -- the Codex MCP space moves fast, so check each tool's current state. The point isn't "skill-codex wins everything"; it's that the operational details (subscription auth, real Windows support, never-frozen runs, guardrails) are where it focuses.*
 
+## See it in action
+
+A 20-second tour:
+
+![skill-codex trailer](docs/demo-trailer.gif)
+
+**`/codex-review`** -- a different model reviews your diff and returns a verdict, with a bounded fix → re-review loop:
+
+![/codex-review demo](docs/demo-review.gif)
+
+**`/codex-do`** -- delegate a bounded task; Codex writes it, Claude reviews the diff:
+
+![/codex-do demo](docs/demo-delegate.gif)
+
+**`/codex-consult`** -- a second opinion on a design call (you keep the decision):
+
+![/codex-consult demo](docs/demo-consult.gif)
+
+**Model & reasoning effort, per task** -- a cheap model for grunt work, high effort for hard reviews:
+
+![model and effort demo](docs/demo-models.gif)
+
 ## Prerequisites
 
 * [Node.js](https://nodejs.org) >= 18
