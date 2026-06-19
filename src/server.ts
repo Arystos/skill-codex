@@ -14,7 +14,7 @@ import {
 
 export function createServer(cwd: string): Server {
   const server = new Server(
-    { name: "skill-codex", version: "0.6.0" },
+    { name: "skill-codex", version: "0.7.0" },
     { capabilities: { tools: {} } },
   );
 
