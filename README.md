@@ -95,6 +95,13 @@ You in Claude Code
 
 The MCP server spawns `codex exec` as a subprocess, using your logged-in Codex session. Claude sees the output and critically evaluates it -- **Codex is treated as a peer, not an authority**.
 
+### Advanced: sandbox control & session memory
+
+The `codex_exec` tool accepts two optional parameters beyond `mode`:
+
+* **`sandbox`** -- the explicit Codex sandbox policy (`read-only`, `workspace-write`, or `danger-full-access`), overriding the `mode` default. Use `danger-full-access` only when you understand the risk.
+* **`sessionId`** -- resume a previous Codex session for multi-round memory. Each response includes the session's thread id; pass it back as `sessionId` so Codex retains context -- e.g. a follow-up review that checks whether *previously flagged* issues were fixed, instead of re-discovering them.
+
 ### Auto-review
 
 After significant code changes (3+ files, 100+ lines, security-related paths), the PostToolUse hook suggests running `/codex-review`. Trivial changes (docs-only, < 5 lines, whitespace) are skipped to preserve your Codex quota.

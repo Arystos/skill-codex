@@ -136,6 +136,8 @@ The skill-codex MCP server exposes exactly one tool: `codex_exec`.
 |-------|------|----------|-------------|
 | `prompt` | string | yes | The prompt to send to Codex |
 | `mode` | `"exec"` \| `"full-auto"` | no (default `"exec"`) | `exec` is read-only; `full-auto` allows file writes |
+| `sandbox` | `"read-only"` \| `"workspace-write"` \| `"danger-full-access"` | no | Explicit sandbox policy; overrides `mode`. Use `danger-full-access` only when you understand the risk |
+| `sessionId` | string | no | Resume a prior Codex session (the thread id from a previous response) so Codex keeps context across calls |
 | `cwd` | string | no | Working directory for Codex |
 | `timeoutMs` | number | no | Override default 5min timeout |
 | `requireGit` | boolean | no | Refuse to run if cwd is not a git repo (recommended `true` for `full-auto`) |
