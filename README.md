@@ -232,7 +232,7 @@ Security policy: [SECURITY.md](SECURITY.md). Uninstall: `npx skill-codex uninsta
 
 ## Contributing
 
-Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md). If you find this useful, you can [support the project on Ko-fi](https://ko-fi.com/arystos).
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) and the [roadmap](ROADMAP.md) — issues tagged **good first issue** and **help wanted** are a great place to start. Questions and ideas go in [Discussions](https://github.com/Arystos/skill-codex/discussions). If you find this useful, you can [support the project on Ko-fi](https://ko-fi.com/arystos).
 
 ## License
 

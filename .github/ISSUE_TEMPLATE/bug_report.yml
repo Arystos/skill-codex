@@ -1,0 +1,57 @@
+name: Bug report
+description: Something isn't working as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill in the details below so it can be reproduced.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, and what went wrong? Include the exact error or output if any.
+      placeholder: I ran /codex-review and got …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `npx skill-codex setup`
+        2. In Claude Code, run `…`
+        3. …
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: "Output of: `npx skill-codex --version`, `codex --version`, `node --version`"
+      placeholder: "skill-codex 0.8.1 · codex-cli 0.133.0 · node v22"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "If relevant, attach the tail-able run log (path is printed at run start, under your OS temp dir) or set SKILL_CODEX_DEBUG=1 and paste stderr."
+      render: shell

@@ -1,0 +1,32 @@
+name: Feature request
+description: Suggest an idea or improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea. Check the [roadmap](https://github.com/Arystos/skill-codex/blob/master/ROADMAP.md) first — it might already be planned.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: The use case or pain point behind the request.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What you'd like to see. If it maps to a Codex CLI capability, name the flag/subcommand.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd be willing to help implement this
