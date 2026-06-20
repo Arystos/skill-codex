@@ -11,9 +11,9 @@ the most recent release before reporting an issue.
 Please report security vulnerabilities **privately** — do not open a public issue
 for an undisclosed vulnerability.
 
-- Preferred: open a [GitHub Security Advisory](https://github.com/Arystos/skill-codex/security/advisories/new)
-  (Security → Report a vulnerability).
-- Alternatively: email **arystotelos@gmail.com** with the details.
+Open a [GitHub Security Advisory](https://github.com/Arystos/skill-codex/security/advisories/new)
+(Security → Report a vulnerability) — this keeps the report private and lets us
+collaborate on a fix.
 
 Please include: affected version, a description of the issue, reproduction steps
 or a proof of concept, and the potential impact. We aim to acknowledge reports
