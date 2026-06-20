@@ -1,7 +1,7 @@
 {
   "name": "skill-codex",
   "description": "Use OpenAI Codex from Claude Code for code review, task delegation, and second opinions via MCP — with your Codex subscription, no API key.",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "author": {
     "name": "Arystos",
     "url": "https://github.com/Arystos"
