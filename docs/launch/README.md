@@ -10,11 +10,8 @@ nothing here is auto-published.
 
 ## Status of the 4 distribution steps
 
-1. **Demo GIF** — needs `vhs` installed locally (`winget install charmbracelet.vhs`),
-   then `vhs docs/demo/demo.tape` → `docs/demo.gif`, then uncomment the image line
-   near the top of the main README. (ffmpeg is present; vhs + ttyd are not.)
-2. **Codecov badge** — enable the repo on codecov.io (your account), then uncomment
-   the codecov badge in the main README. CI already uploads coverage.
+1. **Demo GIFs** — done: animated Remotion trailer + per-feature clips live in `docs/` and the README "See it in action" gallery. Source project: `../skill-codex-video` (sibling, not committed).
+2. **Codecov** — dropped (the 80% coverage gate is still enforced in CI; no external service).
 3. **Marketplace + awesome-lists** — copy ready in `marketplace.md` / `awesome-lists.md`.
    Awesome-list PRs can be opened on request; marketplace likely needs a plugin manifest.
 4. **Launch posts** — copy ready in `show-hn.md` / `reddit.md`.

@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.1] - 2026-06-20
+
+### Added
+- **`SECURITY.md`** — private vulnerability-disclosure policy and security posture.
+- **Codex plugin manifest** (`.codex-plugin/plugin.json` + `assets/icon.svg`) so skill-codex is installable as an OpenAI Codex plugin too, not just a Claude Code plugin.
+- Ship `.codex-plugin`, `assets/`, and `SECURITY.md` in the npm package.
+
+### Changed
+- **Hardening:** GitHub Actions are now SHA-pinned (checkout v4.2.2, setup-node v4.1.0) in CI and publish workflows.
+- **Docs:** README restructured per the standard-readme spec (single hero demo, collapsible TOC + demo gallery, Install/Usage grouping); full configuration, smart-filter, and edge-case reference moved to `docs/CONFIGURATION.md`.
+
 ## [0.8.0] - 2026-06-19
 
 ### Added
