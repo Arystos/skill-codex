@@ -1,5 +1,8 @@
 {
   "name": "skill-codex",
+  "metadata": {
+    "description": "Bridge Claude Code to the OpenAI Codex CLI for cross-model code review, task delegation, and second opinions — using your Codex subscription, no API key."
+  },
   "owner": {
     "name": "Arystos",
     "url": "https://github.com/Arystos"
@@ -9,7 +12,7 @@
       "name": "skill-codex",
       "source": "./",
       "description": "Use OpenAI Codex from Claude Code for code review, task delegation, and second opinions via MCP — with your Codex subscription, no API key. Windows-native, live progress.",
-      "version": "0.8.0",
+      "version": "0.8.1",
       "author": {
         "name": "Arystos",
         "url": "https://github.com/Arystos"
