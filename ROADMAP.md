@@ -1,6 +1,10 @@
 # Roadmap
 
-Where skill-codex is headed. This is a living document — open an
+Where skill-codex is headed. This page is the at-a-glance vision; the
+**[live project board](https://github.com/users/Arystos/projects/2)** tracks
+day-to-day status (Todo / In progress / Done) against real issues.
+
+This is a living document — open an
 [issue](https://github.com/Arystos/skill-codex/issues) or start a
 [discussion](https://github.com/Arystos/skill-codex/discussions) to suggest or
 champion anything here. Items labelled **good first issue** and **help wanted**
