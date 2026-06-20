@@ -29,9 +29,12 @@
     "hooks",
     "skills",
     ".claude-plugin",
+    ".codex-plugin",
+    "assets",
     ".mcp.json",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "SECURITY.md"
   ],
   "keywords": [
     "claude-code",

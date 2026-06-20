@@ -1,0 +1,12 @@
+{
+  "name": "skill-codex",
+  "version": "0.8.0",
+  "description": "Use OpenAI Codex from Claude Code (or any agent) for code review, task delegation, and second opinions via MCP — with your Codex subscription, no API key.",
+  "repository": "https://github.com/Arystos/skill-codex",
+  "license": "MIT",
+  "interface": {
+    "displayName": "skill-codex",
+    "shortDescription": "Claude Code ↔ Codex bridge: review, delegate, consult.",
+    "composerIcon": "./assets/icon.svg"
+  }
+}
