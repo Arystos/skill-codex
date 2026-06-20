@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="skill-codex">
+  <rect width="512" height="512" rx="112" fill="#21222c"/>
+  <rect x="8" y="8" width="496" height="496" rx="104" fill="none" stroke="#343746" stroke-width="4"/>
+  <!-- two models bridging: Claude (cyan) ↔ Codex (purple) -->
+  <circle cx="150" cy="256" r="46" fill="none" stroke="#8be9fd" stroke-width="14"/>
+  <circle cx="362" cy="256" r="46" fill="none" stroke="#bd93f9" stroke-width="14"/>
+  <!-- bridge arrows -->
+  <path d="M 196 232 L 316 232" stroke="#50fa7b" stroke-width="14" stroke-linecap="round"/>
+  <path d="M 300 214 L 320 232 L 300 250" fill="none" stroke="#50fa7b" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 316 280 L 196 280" stroke="#bd93f9" stroke-width="14" stroke-linecap="round"/>
+  <path d="M 212 262 L 192 280 L 212 298" fill="none" stroke="#bd93f9" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- prompt mark bottom -->
+  <path d="M 168 360 L 196 388 L 168 416" fill="none" stroke="#f8f8f2" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 214 418 L 268 418" stroke="#6272a4" stroke-width="16" stroke-linecap="round"/>
+</svg>
