@@ -43,6 +43,7 @@ The PostToolUse hook decides whether to suggest `/codex-review` after an edit:
 | Trivial changes | Smart filter skips auto-review |
 | Empty Codex output | Retries once, then reports clearly |
 
+
 ## `codex_exec` tool parameters
 
 The MCP server exposes one tool, `codex_exec`. All parameters except `prompt`
@@ -62,3 +63,32 @@ are optional; omit them and Codex uses its configured defaults.
 | `cwd` | string | Working directory (defaults to server cwd) |
 | `timeoutMs` | number | Override the default timeout |
 | `requireGit` | boolean | Fail if not inside a git repository |
+
+
+## Model routing recipes
+
+Choose the model based on the type of work:
+
+| Workflow | Model | Reasoning effort | Use for |
+|----------|-------|------------------|---------|
+| `/codex-do` / `codex_exec` | `gpt-5.4-mini` | default | Mechanical or bulk work |
+| `/codex-review` | `gpt-5.5` | `high` | Careful review and higher-rigor checks |
+
+Example `codex_exec` configuration:
+
+```json
+{
+  "model": "gpt-5.4-mini"
+}
+```
+
+For a careful review:
+
+```json
+{
+  "model": "gpt-5.5",
+  "reasoningEffort": "high"
+}
+```
+
+Use the lighter model for straightforward, repetitive work and reserve the stronger model with higher reasoning effort for work that benefits from a more careful pass.
