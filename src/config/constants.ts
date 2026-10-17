@@ -36,12 +36,20 @@ export const CONFIG_ONLY_FILES = [".gitignore", ".eslintrc", ".prettierrc", ".ed
 
 export const DEBUG_ENV = "SKILL_CODEX_DEBUG";
 
-// Codex's default ("elevated") Windows sandbox fails to spawn shells with
-// "windows sandbox: spawn setup refresh" on many setups (openai/codex#24098,
-// #24259). The "unelevated" sandbox spawns reliably, so we pin to it on Windows.
-// Override with SKILL_CODEX_WINDOWS_SANDBOX=elevated if a machine needs it.
+// Windows sandbox backend passed as `-c windows.sandbox=<mode>`. Originally
+// pinned because the "elevated" backend failed to spawn shells ("windows
+// sandbox: spawn setup refresh", openai/codex#24098, #24259). That bug is fixed
+// as of codex-cli 0.163, but re-tested on 0.163 the pin is still needed:
+// - elevated runs commands as a separate local account (CodexSandboxOffline),
+//   so git refuses every repo the user owns ("detected dubious ownership");
+// - mxc fails `git status` with "this operation must be run in a work tree".
+// unelevated runs git normally, and all three block writes outside the
+// workspace. Override with SKILL_CODEX_WINDOWS_SANDBOX (one of the modes below).
 export const WINDOWS_SANDBOX_ENV = "SKILL_CODEX_WINDOWS_SANDBOX";
-export const WINDOWS_SANDBOX_DEFAULT = "unelevated";
+// The values codex-rs accepts for `windows.sandbox` (windows_sandbox_config.rs).
+export const WINDOWS_SANDBOX_MODES = ["elevated", "unelevated", "mxc"] as const;
+export type WindowsSandboxMode = (typeof WINDOWS_SANDBOX_MODES)[number];
+export const WINDOWS_SANDBOX_DEFAULT: WindowsSandboxMode = "unelevated";
 
 export const TRANSIENT_PATTERNS = [
   "rate limit", "too many requests", "429",
