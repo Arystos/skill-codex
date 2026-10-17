@@ -193,8 +193,6 @@ function formatRichResponse(
     for (const a of result.activity) {
       if (a.type === "exec") {
         lines.push(`  ${a.icon} exec: ${a.command}  (${a.status})`);
-      } else if (a.type === "read") {
-        lines.push(`  \u25B6 read: ${a.path}`);
       } else if (a.type === "write") {
         lines.push(`  \u270E write: ${a.path}`);
       }

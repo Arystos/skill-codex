@@ -22,22 +22,16 @@ describe("formatLogLines", () => {
     ).toEqual(["    ✘ exit 2"]);
   });
 
-  it("renders file reads, writes and edits", () => {
-    expect(formatLogLines({ item: { type: "file_read", path: "a.ts" } })).toEqual(["  read   a.ts"]);
-    expect(formatLogLines({ item: { type: "file_write", path: "b.ts" } })).toEqual(["  write  b.ts"]);
-    expect(formatLogLines({ item: { type: "file_edit", path: "c.ts" } })).toEqual(["  write  c.ts"]);
-  });
-
   it("renders file_change with a changes array", () => {
     expect(
       formatLogLines({
-        item: { type: "file_change", changes: [{ path: "a.ts", kind: "modify" }, { path: "b.ts" }] },
+        item: { type: "file_change", changes: [{ path: "a.ts", kind: "update" }, { path: "b.ts" }] },
       }),
-    ).toEqual(["  write  a.ts (modify)", "  write  b.ts (write)"]);
+    ).toEqual(["  write  a.ts (update)", "  write  b.ts (write)"]);
   });
 
-  it("renders file_change without a changes array", () => {
-    expect(formatLogLines({ item: { type: "file_change", path: "x.ts" } })).toEqual(["  write  x.ts"]);
+  it("renders nothing for file_change without a changes array", () => {
+    expect(formatLogLines({ item: { type: "file_change" } })).toEqual([]);
   });
 
   it("renders the final agent message but skips partials", () => {

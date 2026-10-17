@@ -22,9 +22,9 @@ export class CliNotFoundError extends BridgeError {
 }
 
 export class AuthExpiredError extends BridgeError {
-  constructor() {
+  constructor(detail: string = "") {
     super(
-      "Codex authentication expired or not found. Run `codex login` to re-authenticate.",
+      `Codex authentication expired or not found${detail ? ` (${detail})` : ""}. Run \`codex login\` to re-authenticate.`,
       "AUTH_EXPIRED",
       false,
     );
@@ -66,9 +66,9 @@ export class TimeoutError extends BridgeError {
 }
 
 export class RateLimitError extends BridgeError {
-  constructor() {
+  constructor(detail: string = "") {
     super(
-      "Codex rate limited (429). Will retry with backoff.",
+      `Codex rate limited (429)${detail ? `: ${detail}` : ""}. Will retry with backoff.`,
       "RATE_LIMIT",
       true,
     );
@@ -95,6 +95,21 @@ export class NetworkError extends BridgeError {
       true,
     );
     this.name = "NetworkError";
+  }
+}
+
+/**
+ * The Codex API rejected the request itself (HTTP 4xx other than 401/403/429),
+ * e.g. an unsupported model. Retrying the same request cannot succeed.
+ */
+export class InvalidRequestError extends BridgeError {
+  constructor(detail: string) {
+    super(
+      `Codex rejected the request: ${detail.replace(/\.\s*$/, "")}. Check the model and options passed to Codex.`,
+      "INVALID_REQUEST",
+      false,
+    );
+    this.name = "InvalidRequestError";
   }
 }
 

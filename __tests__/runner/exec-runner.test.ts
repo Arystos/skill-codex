@@ -1,7 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { EventEmitter } from "node:events";
 import { Readable, Writable } from "node:stream";
-import { CliNotFoundError } from "../../src/errors/errors.js";
+import {
+  AuthExpiredError,
+  BridgeError,
+  CliNotFoundError,
+  InvalidRequestError,
+  NetworkError,
+  RateLimitError,
+  ServerError,
+} from "../../src/errors/errors.js";
 
 // Mock node:child_process before importing module under test
 vi.mock("node:child_process", () => ({
@@ -80,6 +88,32 @@ function makeMockProcess(opts: {
   return proc;
 }
 
+/** JSONL lines, one event per line, as `codex exec --json` writes them. */
+function jsonl(...events: unknown[]): string {
+  return events.map((e) => JSON.stringify(e)).join("\n") + "\n";
+}
+
+/** A minimal successful `codex exec --json` run ending in one agent message. */
+function agentOutput(text: string): string {
+  return jsonl(
+    { type: "thread.started", thread_id: "0199a213-81c0-7800-8aa1-bbab2a035a53" },
+    { type: "turn.started" },
+    { type: "item.completed", item: { id: "item_0", type: "agent_message", text } },
+    { type: "turn.completed", usage: { input_tokens: 10, cached_input_tokens: 0, output_tokens: 2, reasoning_output_tokens: 0 } },
+  );
+}
+
+/** A failed run: transient reconnect noise, then a terminal `turn.failed`. */
+function failedOutput(message: string): string {
+  return jsonl(
+    { type: "thread.started", thread_id: "0199a213-81c0-7800-8aa1-bbab2a035a53" },
+    { type: "turn.started" },
+    { type: "error", message: "Reconnecting... 2/5 (workspace routing discovery unauthorized (401))" },
+    { type: "item.completed", item: { id: "item_0", type: "error", message: "Falling back from WebSockets to HTTPS transport." } },
+    { type: "turn.failed", error: { message } },
+  );
+}
+
 describe("execCodex", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -98,7 +132,7 @@ describe("execCodex", () => {
   });
 
   it("passes correct args for a fresh exec run (includes --sandbox, read-only)", async () => {
-    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const validOutput = agentOutput("done");
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as any);
 
@@ -115,7 +149,7 @@ describe("execCodex", () => {
   });
 
   it("passes --sandbox workspace-write for full-auto mode (not deprecated --full-auto)", async () => {
-    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const validOutput = agentOutput("done");
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as any);
 
@@ -129,7 +163,7 @@ describe("execCodex", () => {
   });
 
   it("lets explicit sandbox override mode", async () => {
-    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const validOutput = agentOutput("done");
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as any);
 
@@ -147,7 +181,7 @@ describe("execCodex", () => {
   });
 
   it("adds model args when provided", async () => {
-    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const validOutput = agentOutput("done");
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as ReturnType<typeof spawn>);
 
@@ -164,7 +198,7 @@ describe("execCodex", () => {
   });
 
   it("adds reasoning effort config when provided", async () => {
-    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const validOutput = agentOutput("done");
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as ReturnType<typeof spawn>);
 
@@ -181,7 +215,7 @@ describe("execCodex", () => {
   });
 
   it("uses exec resume without --sandbox when sessionId is provided", async () => {
-    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const validOutput = agentOutput("done");
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as any);
 
@@ -202,7 +236,7 @@ describe("execCodex", () => {
   });
 
   it("uses native review with uncommitted changes and no sandbox", async () => {
-    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const validOutput = agentOutput("done");
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as ReturnType<typeof spawn>);
 
@@ -224,7 +258,7 @@ describe("execCodex", () => {
   });
 
   it("uses prompt-only review (custom instructions, no scope flag)", async () => {
-    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const validOutput = agentOutput("done");
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as ReturnType<typeof spawn>);
 
@@ -243,7 +277,7 @@ describe("execCodex", () => {
   });
 
   it("uses native review base when provided", async () => {
-    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const validOutput = agentOutput("done");
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as ReturnType<typeof spawn>);
 
@@ -263,7 +297,7 @@ describe("execCodex", () => {
   });
 
   it("uses native review commit when provided without a base", async () => {
-    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const validOutput = agentOutput("done");
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as ReturnType<typeof spawn>);
 
@@ -283,7 +317,7 @@ describe("execCodex", () => {
   });
 
   it("applies model and reasoning effort to native review", async () => {
-    const validOutput = JSON.stringify({ type: "result", content: "done" }) + "\n";
+    const validOutput = agentOutput("done");
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as ReturnType<typeof spawn>);
 
@@ -309,7 +343,7 @@ describe("execCodex", () => {
     const original = Object.getOwnPropertyDescriptor(process, "platform");
     Object.defineProperty(process, "platform", { value: "win32", configurable: true });
     try {
-      const validOutput = JSON.stringify({ type: "result", content: "ok" }) + "\n";
+      const validOutput = agentOutput("ok");
       const proc = makeMockProcess({ stdoutData: validOutput });
       mockSpawn.mockReturnValue(proc as any);
 
@@ -324,7 +358,7 @@ describe("execCodex", () => {
   });
 
   it("writes prompt to stdin", async () => {
-    const validOutput = JSON.stringify({ type: "result", content: "ok" }) + "\n";
+    const validOutput = agentOutput("ok");
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as any);
 
@@ -335,7 +369,7 @@ describe("execCodex", () => {
   });
 
   it("resolves with parsed content on exit code 0", async () => {
-    const validOutput = JSON.stringify({ type: "result", content: "Review complete" }) + "\n";
+    const validOutput = agentOutput("Review complete");
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as any);
 
@@ -354,13 +388,110 @@ describe("execCodex", () => {
   });
 
   it("rejects with AuthExpiredError on unauthorized stderr", async () => {
-    const { AuthExpiredError } = await import("../../src/errors/errors.js");
     const proc = makeMockProcess({ exitCode: 1, stderrData: "Unauthorized: invalid api key" });
     mockSpawn.mockReturnValue(proc as any);
 
-    await expect(
-      execCodex({ prompt: "fail", cwd: "/tmp", mode: "exec" }),
-    ).rejects.toThrow(AuthExpiredError);
+    const err = await execCodex({ prompt: "fail", cwd: "/tmp", mode: "exec" }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(AuthExpiredError);
+    // stderr may carry internals, so it is not echoed into the auth message.
+    expect((err as Error).message).not.toContain("invalid api key");
+  });
+
+  describe("turn.failed classification", () => {
+    async function runFailing(stdoutData: string, stderrData = ""): Promise<BridgeError> {
+      mockSpawn.mockReturnValue(makeMockProcess({ exitCode: 1, stdoutData, stderrData }) as any);
+      const err = await execCodex({ prompt: "fail", cwd: "/tmp", mode: "exec" }).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(BridgeError);
+      return err as BridgeError;
+    }
+
+    it("classifies an auth turn.failed with empty stderr and shows the Codex message", async () => {
+      const err = await runFailing(failedOutput("workspace routing discovery unauthorized (401)"));
+      expect(err).toBeInstanceOf(AuthExpiredError);
+      expect(err.message).toContain("workspace routing discovery unauthorized (401)");
+      expect(err.message).toContain("codex login");
+    });
+
+    it("prefers turn.failed over stderr for classification and message", async () => {
+      const err = await runFailing(
+        failedOutput("stream disconnected before completion: 503 Service Unavailable"),
+        "Unauthorized: invalid api key",
+      );
+      expect(err).toBeInstanceOf(ServerError);
+      expect(err.message).toContain("503 Service Unavailable");
+      expect(err.message).not.toContain("invalid api key");
+    });
+
+    it("classifies a rate-limit turn.failed", async () => {
+      const err = await runFailing(failedOutput("exceeded retry limit, last status: 429 Too Many Requests"));
+      expect(err).toBeInstanceOf(RateLimitError);
+      expect(err.message).toContain("429 Too Many Requests");
+    });
+
+    it("classifies a network turn.failed", async () => {
+      const err = await runFailing(failedOutput("error sending request: fetch failed"));
+      expect(err).toBeInstanceOf(NetworkError);
+      expect(err.message).toContain("fetch failed");
+    });
+
+    it("uses an unclassified turn.failed message in the generic error", async () => {
+      const err = await runFailing(failedOutput("turn failed"), "noisy stderr");
+      expect(err.code).toBe("EXEC_FAILED");
+      expect(err.message).toBe("Codex exited with code 1: turn failed");
+    });
+
+    it("surfaces a bad model as a non-retryable invalid-request error", async () => {
+      // Captured live from Codex 0.163.0 with an unsupported model.
+      const stdout = [
+        '{"type":"thread.started","thread_id":"0199a213-81c0-7800-8aa1-bbab2a035a53"}',
+        '{"type":"item.completed","item":{"id":"item_0","type":"error","message":"Model metadata for `gpt-5.6-sol` not found. Defaulting to fallback metadata; this can degrade performance and cause issues."}}',
+        '{"type":"turn.started"}',
+        '{"type":"error","message":"{\\"type\\":\\"error\\",\\"status\\":400,\\"error\\":{\\"type\\":\\"invalid_request_error\\",\\"message\\":\\"The \'gpt-5.6-sol\' model is not supported when using Codex with a ChatGPT account.\\"}}"}',
+        '{"type":"turn.failed","error":{"message":"{\\"type\\":\\"error\\",\\"status\\":400,\\"error\\":{\\"type\\":\\"invalid_request_error\\",\\"message\\":\\"The \'gpt-5.6-sol\' model is not supported when using Codex with a ChatGPT account.\\"}}"}}',
+      ].join("\n") + "\n";
+      const err = await runFailing(stdout);
+      expect(err).toBeInstanceOf(InvalidRequestError);
+      expect(err.retryable).toBe(false);
+      expect(err.code).toBe("INVALID_REQUEST");
+      expect(err.message).toContain(
+        "The 'gpt-5.6-sol' model is not supported when using Codex with a ChatGPT account.",
+      );
+      expect(err.message).not.toContain("invalid_request_error");
+      expect(err.message).not.toContain("{");
+    });
+
+    it("maps an HTTP status from a JSON-encoded error before keyword matching", async () => {
+      const encoded = (status: number, message: string) =>
+        JSON.stringify({ type: "error", status, error: { type: "api_error", message } });
+      expect(await runFailing(failedOutput(encoded(401, "Your session has ended.")))).toBeInstanceOf(AuthExpiredError);
+      expect(await runFailing(failedOutput(encoded(429, "Slow down.")))).toBeInstanceOf(RateLimitError);
+      expect(await runFailing(failedOutput(encoded(502, "Upstream hiccup.")))).toBeInstanceOf(ServerError);
+      expect(await runFailing(failedOutput(encoded(404, "Unknown model 500x.")))).toBeInstanceOf(InvalidRequestError);
+    });
+
+    it("does not treat transient error events as fatal: falls back to stderr without turn.failed", async () => {
+      const stdout = jsonl(
+        { type: "turn.started" },
+        { type: "error", message: "Reconnecting... 2/5 (workspace routing discovery unauthorized (401))" },
+      );
+      const err = await runFailing(stdout, "some failure");
+      expect(err).not.toBeInstanceOf(AuthExpiredError);
+      expect(err.message).toBe("Codex exited with code 1: some failure");
+    });
+
+    it("resolves when a run recovers after transient error events", async () => {
+      const stdout = jsonl(
+        { type: "thread.started", thread_id: "t-1" },
+        { type: "turn.started" },
+        { type: "error", message: "Reconnecting... 1/5 (stream disconnected before completion)" },
+        { type: "item.completed", item: { id: "item_0", type: "error", message: "Falling back from WebSockets to HTTPS transport." } },
+        { type: "item.completed", item: { id: "item_1", type: "agent_message", text: "Recovered" } },
+        { type: "turn.completed", usage: { input_tokens: 1, cached_input_tokens: 0, output_tokens: 1, reasoning_output_tokens: 0 } },
+      );
+      mockSpawn.mockReturnValue(makeMockProcess({ stdoutData: stdout }) as any);
+      const result = await execCodex({ prompt: "x", cwd: "/tmp", mode: "exec" });
+      expect(result.content).toBe("Recovered");
+    });
   });
 
   it("emits progress messages from stdout JSONL events and attaches logPath/durationMs", async () => {
@@ -389,7 +520,7 @@ describe("execCodex", () => {
   });
 
   it("does not call onProgress when none is provided (no throw)", async () => {
-    const validOutput = JSON.stringify({ type: "result", content: "ok" }) + "\n";
+    const validOutput = agentOutput("ok");
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as any);
 
@@ -398,7 +529,7 @@ describe("execCodex", () => {
 
   it("uses cached binary path when spawning", async () => {
     mockGetCachedBinaryPath.mockReturnValue("/opt/bin/codex");
-    const validOutput = JSON.stringify({ type: "result", content: "ok" }) + "\n";
+    const validOutput = agentOutput("ok");
     const proc = makeMockProcess({ stdoutData: validOutput });
     mockSpawn.mockReturnValue(proc as any);
 
