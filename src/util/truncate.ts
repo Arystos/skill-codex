@@ -3,12 +3,14 @@ import { MAX_RESPONSE_CHARS } from "../config/constants.js";
 export function truncateResponse(
   text: string,
   maxChars: number = MAX_RESPONSE_CHARS,
+  fullOutputPath?: string,
 ): string {
   if (text.length <= maxChars) return text;
 
   const omitted = text.length - maxChars;
+  const where = fullOutputPath ? ` Full output: ${fullOutputPath}` : "";
   return (
     text.slice(0, maxChars) +
-    `\n\n[Response truncated at ${maxChars} characters. ${omitted} characters omitted.]`
+    `\n\n[Response truncated at ${maxChars} characters. ${omitted} characters omitted.${where}]`
   );
 }

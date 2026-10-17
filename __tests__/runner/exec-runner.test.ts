@@ -519,6 +519,39 @@ describe("execCodex", () => {
     expect(typeof result.durationMs).toBe("number");
   });
 
+  it("heartbeat carries the latest plan step", async () => {
+    vi.useFakeTimers();
+    try {
+      // A process that stays open until the test closes it.
+      const proc = new EventEmitter() as any;
+      proc.stdout = new Readable({ read() {} });
+      proc.stderr = new Readable({ read() {} });
+      proc.stdin = new Writable({ write(_c, _e, cb) { cb(); } });
+      proc.kill = vi.fn();
+      mockSpawn.mockReturnValue(proc);
+
+      const progress: string[] = [];
+      const done = execCodex({ prompt: "x", cwd: "/tmp", mode: "exec", onProgress: (m) => progress.push(m) });
+      proc.stdout.push(
+        jsonl({
+          type: "item.updated",
+          item: { type: "todo_list", items: [{ text: "write tests", completed: false }, { text: "ship", completed: false }] },
+        }),
+      );
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(progress.at(-1)).toBe("Codex working… 10s · plan 0/2: write tests");
+
+      proc.stdout.push(jsonl({ type: "item.completed", item: { type: "agent_message", text: "done" } }));
+      proc.stdout.push(null);
+      proc.stderr.push(null);
+      await vi.advanceTimersByTimeAsync(0);
+      proc.emit("close", 0);
+      await expect(done).resolves.toMatchObject({ content: "done" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not call onProgress when none is provided (no throw)", async () => {
     const validOutput = agentOutput("ok");
     const proc = makeMockProcess({ stdoutData: validOutput });
