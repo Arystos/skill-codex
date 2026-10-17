@@ -66,6 +66,10 @@ The PostToolUse hook decides whether to suggest `/codex-review` after an edit:
 | Recursive calls | `SKILL_CODEX_DEPTH` limit prevents infinite loops |
 | Trivial changes | Smart filter skips auto-review |
 | Empty Codex output | Retries once, then reports clearly |
+| Model not on the account | Retries once with the configured default and notes it in the response |
+| Very long Codex answer | Inlines the first 36,000 characters (Claude Code saves MCP results over 50,000 characters to a file and warns above 10,000 tokens) and saves the full text to a file named in the response |
+| Busy run with many commands | Shows the 40 most recent actions; the live log has all of them |
+| Codex newer than verified | One-time note in the first response; `npx skill-codex doctor` shows details |
 
 ## `codex_exec` tool parameters
 
@@ -78,7 +82,7 @@ are optional; omit them and Codex uses its configured defaults.
 | `mode` | `exec` \| `full-auto` | `exec` = read-only (default), `full-auto` = can write files |
 | `sandbox` | `read-only` \| `workspace-write` \| `danger-full-access` | Explicit sandbox policy; overrides `mode` |
 | `sessionId` | string | Resume a prior Codex session (thread id from a previous response) |
-| `model` | string | Codex model, e.g. `gpt-6.1-sol`, `gpt-6-luna`; availability depends on your ChatGPT plan and Codex version (`codex debug models` lists yours), and omitting it uses your configured default |
+| `model` | string | Codex model. At tools/list time the description lists the models on this account (`codex debug models`). Omit it for your configured default. A model Codex rejects falls back to the default once, with a note in the response |
 | `reasoningEffort` | `minimal` \| `low` \| `medium` \| `high` \| `xhigh` | How hard Codex thinks |
 | `review` | boolean | Run Codex's native diff-scoped `codex exec review` |
 | `reviewBase` | string | With `review`: diff against this base branch |

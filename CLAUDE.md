@@ -41,6 +41,22 @@ npm run build
 npm test
 ```
 
+The running MCP server loads `dist/` once, at start. After changing `src/`:
+
+1. `npm run build`
+2. In Claude Code: `/mcp` → skill-codex → **Reconnect**. This restarts the server without restarting the session.
+3. `npx skill-codex doctor` confirms which build runs and warns when `dist/` is older than `src/`.
+
+Command and skill `.md` changes still need `npx skill-codex setup --force` (setup installs) or a plugin update.
+
+## Codex CLI contract
+
+`src/config/codex-contract.ts` lists every flag and JSONL event type skill-codex relies on, plus `VERIFIED_CODEX_VERSION`. When the runner starts using a new flag or event, add it there. After a live re-verification on a new Codex release, bump `VERIFIED_CODEX_VERSION`. The weekly `codex-drift` workflow and `skill-codex doctor` check installs against this file.
+
+## CLI subcommands
+
+`bin/skill-codex.ts` registers subcommands as `CliCommand` objects (`src/cli/registry.ts`). Put the logic in `src/` so it is tested and covered; keep the bin entry to wiring.
+
 ## MCP Server
 
 The server exposes one tool: `codex_exec` with params:

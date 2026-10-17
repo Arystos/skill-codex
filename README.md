@@ -157,7 +157,7 @@ The slash commands are explicit entry points; the `codex-bridge` **agent skill**
 
 These `codex_exec` parameters are all optional — omit them and Codex uses its defaults:
 
-* **`model`** — pick the Codex model (e.g. `gpt-6.1-sol`, `gpt-6-luna`; availability depends on your ChatGPT plan and Codex version (`codex debug models` lists yours), and omitting it uses Codex's configured default). Route cheap tasks to a smaller model and escalate hard ones.
+* **`model`** — Claude picks the Codex model per task. At startup the server reads the models your ChatGPT plan offers (`codex debug models`) and lists them in the tool description, so Claude routes reviews and multi-file work to the strongest one and quick questions to a fast one. Pass `--model <name>` to a command to force a model. If Codex rejects a model, the call falls back to your configured default and says so.
 * **`reasoningEffort`** — how hard Codex thinks: `minimal` | `low` | `medium` | `high` | `xhigh`.
 * **`sandbox`** — explicit policy (`read-only`, `workspace-write`, `danger-full-access`), overriding `mode`. Use `danger-full-access` only when you understand the risk.
 * **`sessionId`** — resume a previous Codex session for multi-round memory. Each response includes the session's thread id; pass it back so Codex retains context — e.g. a follow-up review that checks whether *previously flagged* issues were fixed.
@@ -203,7 +203,9 @@ The auto-review hook skips trivial diffs (docs-only, < 5 lines, whitespace) and 
 
 **Setup says "Hook script not found"** — run `npm run build` first, then `npx skill-codex setup` again. The hook scripts live in the package root, not in `dist/`.
 
-**`/codex-review` says "Unknown tool: codex_exec"** — restart Claude Code after setup. The MCP server only loads on startup.
+**Something is off — start here:** run `npx skill-codex doctor`. It checks the running build, the Codex CLI version, a live Codex call, the models your plan offers against your configured default, the Windows sandbox mode, how skill-codex is installed (missing, disabled for this project, or installed twice), and whether a newer skill-codex exists. Use `--offline` to skip the live call and the npm lookup.
+
+**`/codex-review` says "Unknown tool: codex_exec"** — restart Claude Code after setup. The MCP server only loads on startup. `npx skill-codex doctor` shows whether the server is registered or disabled for the project.
 
 **Codex keeps timing out** — increase it: `export SKILL_CODEX_TIMEOUT_MS=1200000` (20 min). Large codebases take longer.
 
@@ -262,6 +264,10 @@ npm run build
 npm test
 npm run test:coverage   # enforces the same 80%+ gate as CI
 ```
+
+After changing `src/`, run `npm run build`, then in Claude Code `/mcp` → skill-codex → **Reconnect** to load the new build without restarting the session.
+
+A weekly workflow (`codex-drift`) installs the latest Codex CLI and checks every flag and JSONL event type skill-codex relies on (`src/config/codex-contract.ts`). It opens a `codex-cli-drift` issue when the contract breaks or when a new Codex minor version needs re-verification. When a Codex version newer than the verified one runs, skill-codex also adds a one-time note to its first response.
 
 Security policy: [SECURITY.md](SECURITY.md). Uninstall: `npx skill-codex uninstall`.
 
