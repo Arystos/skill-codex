@@ -43,7 +43,6 @@ The PostToolUse hook decides whether to suggest `/codex-review` after an edit:
 | Trivial changes | Smart filter skips auto-review |
 | Empty Codex output | Retries once, then reports clearly |
 
-
 ## `codex_exec` tool parameters
 
 The MCP server exposes one tool, `codex_exec`. All parameters except `prompt`
@@ -67,18 +66,25 @@ are optional; omit them and Codex uses its configured defaults.
 
 ## Model routing recipes
 
-Choose the model based on the type of work:
+Claude picks the Codex model for each call from the models your account offers. The `codex_exec` tool description lists them; run `codex debug models` to see the same list. Use these recipes when you want to choose yourself, with the command flags `--model` and `--effort`:
 
 | Workflow | Model | Reasoning effort | Use for |
 |----------|-------|------------------|---------|
-| `/codex-do` / `codex_exec` | `gpt-5.4-mini` | default | Mechanical or bulk work |
-| `/codex-review` | `gpt-5.5` | `high` | Careful review and higher-rigor checks |
+| `/codex-do` | a fast model, e.g. `gpt-6-luna` | default | Mechanical or bulk work |
+| `/codex-review` | the strongest model on your plan, e.g. `gpt-6.1-sol` | `high` | Careful review and higher-rigor checks |
 
-Example `codex_exec` configuration:
+Model availability depends on your ChatGPT plan and changes between Codex releases. If your plan does not offer `gpt-6.1-sol`, use the strongest model that `codex debug models` lists (for example `gpt-5.6-terra`). A model Codex rejects falls back to your configured default, with a note in the response.
+
+```shell
+/codex-do --model gpt-6-luna "convert the fixtures in test/data to JSON"
+/codex-review --model gpt-6.1-sol --effort high
+```
+
+The same choices as `codex_exec` parameters:
 
 ```json
 {
-  "model": "gpt-5.4-mini"
+  "model": "gpt-6-luna"
 }
 ```
 
@@ -86,9 +92,9 @@ For a careful review:
 
 ```json
 {
-  "model": "gpt-5.5",
+  "model": "gpt-6.1-sol",
   "reasoningEffort": "high"
 }
 ```
 
-Use the lighter model for straightforward, repetitive work and reserve the stronger model with higher reasoning effort for work that benefits from a more careful pass.
+Use the lighter model for straightforward, repetitive work, and keep the stronger model with higher reasoning effort for work that benefits from a more careful pass.
