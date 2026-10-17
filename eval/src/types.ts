@@ -68,7 +68,7 @@ export interface ReviewOutput {
   readonly text: string;
   /** Overall verdict, if the reviewer assigns one. Optional. */
   readonly verdict?: "APPROVED" | "WARNING" | "BLOCKED";
-  /** Reviewer identity, for the report (e.g. "mock", "codex:gpt-5.5"). */
+  /** Reviewer identity, for the report (e.g. "mock", "codex:gpt-6.1-sol"). */
   readonly reviewer: string;
 }
 

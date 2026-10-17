@@ -13,7 +13,7 @@ You are delegating an implementation task to Codex. Follow these steps:
 
 0. **Extract optional flags from `$ARGUMENTS` first**, then treat the remaining text as the task:
    - `--effort <level>` — Codex reasoning effort. Valid: `minimal`, `low`, `medium`, `high`, `xhigh`. If an invalid level is given, list the valid ones and ask — do not guess.
-   - `--model <name>` — Codex model (e.g. `gpt-5.5`, `gpt-5.4-mini`). Passed through as-is.
+   - `--model <name>` — Codex model (e.g. `gpt-6.1-sol`, `gpt-6-luna`). Passed through as-is. Availability depends on your ChatGPT plan and Codex version (`codex debug models` lists yours); omit to use the configured default.
    - Strip any flags you find; what's left is the task parsed in step 1.
    - **Omitted → default:** if a flag is absent, do NOT pass that parameter to `codex_exec`. Codex falls back to its configured default (`~/.codex/config.toml`). Never invent a value.
 

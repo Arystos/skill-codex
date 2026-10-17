@@ -61,7 +61,7 @@ Because a subagent is the **same model**. When Claude reviews Claude, you inheri
 | | skill-codex | Most Codex MCP bridges |
 |---|---|---|
 | **Windows** verified in CI (not just "should work") | ✅ 9-way matrix (Windows/macOS/Linux × Node 18/20/22) | ❌ usually Linux-only CI |
-| Works around Codex's **elevated-sandbox spawn bug** (no WSL needed) | ✅ pins `windows.sandbox=unelevated` | ❌ |
+| **git works inside Codex's Windows sandbox** (no WSL needed) | ✅ pins `windows.sandbox=unelevated` (re-tested on codex-cli 0.163) | ⚠️ inherit your Codex backend; under `elevated`, git rejects your repo |
 | **Live progress** so long runs never look frozen | ✅ MCP progress + tail-able log | ⚠️ varies |
 | **Slash commands** (`/codex-review`, `/codex-do`, `/codex-consult`) | ✅ | ⚠️ some |
 | **Auto-review hook** (PostToolUse) | ✅ | ❌ |
@@ -69,7 +69,7 @@ Because a subagent is the **same model**. When Claude reviews Claude, you inheri
 | **Guardrails**: retry, timeout, anti-recursion, lock files | ✅ | ⚠️ partial |
 | Codex **subscription** auth (`codex login`, no `OPENAI_API_KEY`) | ✅ | ✅ table stakes — the official Codex MCP & OpenAI plugin do this too |
 
-*A snapshot, not a leaderboard — the Codex MCP space moves fast, so check each tool's current state. Subscription auth (no API key) is **table stakes**: the official Codex MCP server and OpenAI's own plugin use your `codex login` too, so it's not a differentiator — it's just reassurance you won't get a metered API bill. Where skill-codex actually focuses is the operational details: real, CI-verified Windows support (incl. the elevated-sandbox bug), never-frozen runs, guardrails, and an act-on-it review workflow.*
+*A snapshot, not a leaderboard — the Codex MCP space moves fast, so check each tool's current state. Subscription auth (no API key) is **table stakes**: the official Codex MCP server and OpenAI's own plugin use your `codex login` too, so it's not a differentiator — it's just reassurance you won't get a metered API bill. Where skill-codex actually focuses is the operational details: real, CI-verified Windows support (incl. a Windows sandbox mode in which git works), never-frozen runs, guardrails, and an act-on-it review workflow.*
 
 ## See it in action
 
@@ -157,7 +157,7 @@ The slash commands are explicit entry points; the `codex-bridge` **agent skill**
 
 These `codex_exec` parameters are all optional — omit them and Codex uses its defaults:
 
-* **`model`** — pick the Codex model (e.g. `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`). Route cheap tasks to a smaller model and escalate hard ones.
+* **`model`** — pick the Codex model (e.g. `gpt-6.1-sol`, `gpt-6-luna`; availability depends on your ChatGPT plan and Codex version (`codex debug models` lists yours), and omitting it uses Codex's configured default). Route cheap tasks to a smaller model and escalate hard ones.
 * **`reasoningEffort`** — how hard Codex thinks: `minimal` | `low` | `medium` | `high` | `xhigh`.
 * **`sandbox`** — explicit policy (`read-only`, `workspace-write`, `danger-full-access`), overriding `mode`. Use `danger-full-access` only when you understand the risk.
 * **`sessionId`** — resume a previous Codex session for multi-round memory. Each response includes the session's thread id; pass it back so Codex retains context — e.g. a follow-up review that checks whether *previously flagged* issues were fixed.
@@ -193,7 +193,7 @@ Everything is optional. The most common knobs:
 |----------|---------|-------------|
 | `SKILL_CODEX_TIMEOUT_MS` | `300000` (5 min) | Subprocess timeout |
 | `SKILL_CODEX_MAX_RETRIES` | `3` | Retry count for transient errors |
-| `SKILL_CODEX_WINDOWS_SANDBOX` | `unelevated` | Windows-only Codex sandbox mode |
+| `SKILL_CODEX_WINDOWS_SANDBOX` | `unelevated` | Windows-only Codex sandbox mode: `unelevated`, `elevated` or `mxc` |
 
 The auto-review hook skips trivial diffs (docs-only, < 5 lines, whitespace) and forces review on security paths or large/cross-cutting changes, to preserve your Codex quota.
 
@@ -211,7 +211,7 @@ The auto-review hook skips trivial diffs (docs-only, < 5 lines, whitespace) and 
 
 **Lock file blocking runs** — a crashed run can leave a stale `.skill-codex.lock`. It auto-cleans after 15 minutes, or delete it manually.
 
-**Windows: "windows sandbox failed: spawn setup refresh" / Codex commands all blocked** — Codex's default *elevated* Windows sandbox fails to spawn shells on many setups ([openai/codex#24098](https://github.com/openai/codex/issues/24098), [#24259](https://github.com/openai/codex/issues/24259)). skill-codex pins `windows.sandbox=unelevated`, which spawns reliably. If your machine needs the elevated sandbox, set `SKILL_CODEX_WINDOWS_SANDBOX=elevated`.
+**Windows: which Codex sandbox does skill-codex use?** — skill-codex always passes `-c windows.sandbox=unelevated` on Windows, so it overrides `[windows] sandbox` in your `~/.codex/config.toml`. Tested on codex-cli 0.163.0, all three backends block writes outside the workspace, but only `unelevated` runs git cleanly. The `elevated` backend runs commands as a separate local account (`CodexSandboxOffline`), so git refuses your repo with *"detected dubious ownership"*. The `mxc` backend fails `git status` with *"this operation must be run in a work tree"*. The older *"windows sandbox failed: spawn setup refresh"* failure ([openai/codex#24098](https://github.com/openai/codex/issues/24098), [#24259](https://github.com/openai/codex/issues/24259)) is fixed in 0.163. To use another backend, set `SKILL_CODEX_WINDOWS_SANDBOX` to `elevated` or `mxc`; for `elevated`, also add your repos to git's `safe.directory`. Other values are ignored with a warning.
 
 ## Security scanning (SkillSpector)
 

@@ -157,7 +157,7 @@ to the reviewer** — it sees only the diff.
 
 ```shell
 REVIEWER_CMD='codex exec --sandbox read-only' \
-REVIEWER_ID='codex:gpt-5.5' \
+REVIEWER_ID='codex:gpt-6.1-sol' \
 npm run eval -- --live
 ```
 

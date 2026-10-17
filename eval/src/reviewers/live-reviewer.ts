@@ -45,7 +45,7 @@ export interface CommandReviewerOptions {
   readonly command: string;
   /** Fixed args, e.g. ["exec", "--sandbox", "read-only"]. */
   readonly args?: readonly string[];
-  /** Identity for the report, e.g. "codex:gpt-5.5". Defaults to `command`. */
+  /** Identity for the report, e.g. "codex:gpt-6.1-sol". Defaults to `command`. */
   readonly reviewer?: string;
   /** Per-call timeout in ms. */
   readonly timeoutMs?: number;
