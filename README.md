@@ -46,7 +46,7 @@ Claude Code and Codex CLI have different strengths. Claude excels at reasoning, 
 * **`/codex-review`** — Codex reviews your current changes; Claude then audits each finding against the code (keep / rewrite / drop / new, with evidence) before the verdict, so false positives are filtered and missed issues surfaced
 * **`/codex-do`** — delegate well-scoped implementation tasks to Codex
 * **`/codex-consult`** — get a second opinion on architecture or design decisions
-* **`codex-bridge` agent skill** — auto-triggers on implementation/review/consult requests, no command needed
+* **`codex-bridge` agent skill** — Claude decides on its own when to ask Codex for a review or a second opinion, and delegates scoped tasks on request; no command needed
 * **Auto-review hook** — a smart PostToolUse hook suggests review after significant changes
 * **Live progress** — streams Codex's activity as MCP progress so long runs never look frozen (mirrored to a tail-able log under the OS temp dir — never pollutes your repo)
 * **Subscription-first** — works with `codex login`, no `OPENAI_API_KEY` needed
@@ -150,7 +150,7 @@ You in Claude Code
 
 The MCP server spawns `codex exec` as a subprocess using your logged-in Codex session. Claude sees the output and critically evaluates it — **Codex is treated as a peer, not an authority**.
 
-The slash commands are explicit entry points; the `codex-bridge` **agent skill** is the implicit one — Claude loads it automatically when your request matches a delegation, review, or consult pattern ("implement X", "review this diff", "second opinion on…"). Trivial tasks (< 50 lines, faster done directly) are out of scope.
+The slash commands are explicit entry points; the `codex-bridge` **agent skill** is the implicit one. Claude uses it without being asked in two cases: an independent review before it calls a non-trivial change done (roughly 50+ changed lines, or auth, security, payments, crypto, concurrency or migrations), and a consult when a bug survives two fix attempts. It always announces the call. It also loads on requests such as "review this diff", "second opinion on…" or "generate tests for X", and delegates only when it can name the allowed files and a verification command. Small edits and design decisions stay with Claude. To keep Claude from calling Codex on its own, add `disable-model-invocation: true` to the installed `SKILL.md` frontmatter; the slash commands keep working.
 
 <details>
 <summary><b>Advanced: model, effort, sandbox, sessions &amp; native review</b></summary>
