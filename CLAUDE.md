@@ -32,6 +32,7 @@ Cross-platform Claude Code skill integrating OpenAI Codex CLI for code review, t
 - Mock `child_process.spawn` for runner tests
 - Mock `which` for binary check tests
 - Use temp dirs for lock file tests
+- `npm run test:e2e` runs `e2e/` against the real Codex CLI with your own `codex login` (about 7 calls, under a minute at low effort). It is not part of `npm test` or CI. Run it before a release and after bumping `VERIFIED_CODEX_VERSION`. `SKILL_CODEX_E2E_MODEL` and `SKILL_CODEX_E2E_EFFORT` (default `low`) pick the model and effort
 
 ## Build & Run
 
