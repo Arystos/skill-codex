@@ -13,7 +13,13 @@ export const MAX_RETRIES_ENV = "SKILL_CODEX_MAX_RETRIES";
 export const RETRY_DELAYS_MS = [1_000, 2_000, 4_000];
 export const RETRY_CAP_MS = 10_000;
 
-export const MAX_RESPONSE_CHARS = 80_000;
+// Claude Code saves an MCP text result over 50,000 characters to a file and
+// shows only the path, and warns above 10,000 tokens. 36,000 characters
+// (~9k tokens, plus header and activity lines) keeps a codex_exec answer inline
+// and under the warning. Longer answers are saved in full; see saveFullOutput.
+export const MAX_RESPONSE_CHARS = 36_000;
+/** Most recent activity lines (commands, file writes) shown in a response. */
+export const MAX_ACTIVITY_LINES = 40;
 
 export const LOCK_STALE_MS = 900_000; // 15 minutes
 export const LOCK_FILENAME = ".skill-codex.lock";

@@ -103,6 +103,9 @@ export class NetworkError extends BridgeError {
  * e.g. an unsupported model. Retrying the same request cannot succeed.
  */
 export class InvalidRequestError extends BridgeError {
+  /** Codex's own reason, without the advice suffix — lets callers tell model rejections apart. */
+  readonly detail: string;
+
   constructor(detail: string) {
     super(
       `Codex rejected the request: ${detail.replace(/\.\s*$/, "")}. Check the model and options passed to Codex.`,
@@ -110,6 +113,7 @@ export class InvalidRequestError extends BridgeError {
       false,
     );
     this.name = "InvalidRequestError";
+    this.detail = detail;
   }
 }
 

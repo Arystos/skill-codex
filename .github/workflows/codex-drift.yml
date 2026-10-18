@@ -1,0 +1,50 @@
+name: Codex drift check
+
+# Weekly check that the latest codex-cli still offers every flag and JSONL
+# event type skill-codex relies on (src/config/codex-contract.ts). Opens an
+# issue labelled codex-cli-drift when the contract breaks, or when a new Codex
+# minor version needs a live re-verification.
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm install -g @openai/codex@latest
+
+      - id: check
+        run: npx vite-node scripts/check-codex-drift.ts codex-drift-report.md
+
+      - name: Open or update the drift issue
+        if: steps.check.outputs.status != 'ok'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATUS: ${{ steps.check.outputs.status }}
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          if [ "$STATUS" = "drift" ]; then
+            title="Codex drift: codex-cli $VERSION breaks the skill-codex contract"
+          else
+            title="Re-verify skill-codex against codex-cli $VERSION"
+          fi
+          existing=$(gh issue list --state open --label codex-cli-drift --search "\"$title\" in:title" --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file codex-drift-report.md
+          else
+            gh issue create --title "$title" --label codex-cli-drift --body-file codex-drift-report.md
+          fi

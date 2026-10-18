@@ -1,5 +1,4 @@
 import { EmptyOutputError } from "../errors/errors.js";
-import { truncateResponse } from "../util/truncate.js";
 
 // Event and item shapes follow `codex exec --json` as defined in
 // codex-rs/exec/src/exec_events.rs (verified against Codex CLI 0.163.0).
@@ -159,7 +158,7 @@ export function parseCodexOutput(raw: string): CodexResult {
   }
 
   return {
-    content: truncateResponse(agentMessage),
+    content: agentMessage,
     activity,
     usage,
     raw,

@@ -13,9 +13,10 @@ You are consulting Codex for a second opinion. This is read-only — no files wi
 
 0. **Extract optional flags from `$ARGUMENTS` first**, then treat the remaining text as the question:
    - `--effort <level>` — Codex reasoning effort. Valid: `minimal`, `low`, `medium`, `high`, `xhigh`. If an invalid level is given, list the valid ones and ask — do not guess.
-   - `--model <name>` — Codex model (e.g. `gpt-6.1-sol`, `gpt-6-luna`). Passed through as-is. Availability depends on your ChatGPT plan and Codex version (`codex debug models` lists yours); omit to use the configured default.
+   - `--model <name>` — Codex model. Passed through as-is; an explicit `--model` always wins.
    - Strip any flags you find; what's left is the question parsed in step 1.
-   - **Omitted → default:** if a flag is absent, do NOT pass that parameter to `codex_exec`. Codex falls back to its configured default (`~/.codex/config.toml`). Never invent a value.
+   - **`--effort` omitted:** do NOT pass `reasoningEffort`. Codex uses its configured default (`~/.codex/config.toml`).
+   - **`--model` omitted:** choose the model yourself from the list in the `codex_exec` tool's `model` parameter (only those slugs exist on this account). Match the question: a fast listed model for a quick factual check, the strongest one for architecture or design trade-offs. If no list is shown or you are unsure, omit `model` so Codex uses the user's default. If Codex rejects the model, the call falls back to the default on its own.
 
 1. **Parse the question** from `$ARGUMENTS`. This could be:
    - A technical question about the codebase
@@ -33,7 +34,7 @@ You are consulting Codex for a second opinion. This is read-only — no files wi
    - `prompt`: "Provide your analysis and recommendation on the following question. Consider tradeoffs, alternatives, and potential risks. Be specific and cite concrete examples where possible.\n\n<question with context>"
    - `mode`: "exec"
    - `reasoningEffort`: the parsed `--effort` level — **only if provided in step 0** (otherwise omit)
-   - `model`: the parsed `--model` name — **only if provided in step 0** (otherwise omit)
+   - `model`: the parsed `--model` name if given in step 0; otherwise the model you chose in step 0, or omit it
 
 4. **Synthesize both perspectives** for the user:
    - Present Codex's analysis

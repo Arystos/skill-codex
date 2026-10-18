@@ -12,15 +12,31 @@ All notable changes to this project will be documented in this file.
 - **Errors come from Codex's `turn.failed` event.** The HTTP status classifies the failure (401/403 auth, 429 rate limit, 5xx server, other 4xx invalid request); stderr keyword matching is now only the fallback. JSON-encoded API errors are unwrapped to their human message. Transient reconnect `error` events are no longer treated as fatal.
 - Auth and rate-limit errors now include Codex's own message.
 - **Progress notifications** for `web_search` (query), `mcp_tool_call` (server/tool) and `todo_list` (plan step) items.
+- **Claude routes the model per task.** The `model` description now lists the models on the user's account, read live from `codex debug models` at tools/list time. Commands and the agent skill tell Claude to pick from that list when `--model` is absent: the strongest model for reviews and multi-file work, a fast one for quick questions. An explicit `--model` still wins.
+- **Heartbeat shows the plan step.** Long runs report `Codex working… 2m 10s · plan 2/5: <step>` (or the last action) instead of a bare timer. Claude Code shows this line in `/tasks` once it backgrounds a long call.
+- **Response size fits Claude Code's MCP limits.** The inline answer is capped at 36,000 characters (was 80,000), under Claude Code's 50,000-character file threshold and 10,000-token warning. Longer answers are saved in full to a file named in the response. Only the 40 most recent actions are listed.
+- The MCP server reports its version from `package.json` (it was hard-coded) and logs which build it runs at startup.
+- `skill-codex setup` refuses to run when the plugin is already installed, unless `--force` is given, so the server, commands and hook are not registered twice.
+- **`/codex-review` focuses on correctness, security and requirements.** Codex is told not to report style or readability and not to suggest defensive checks for unreachable states; Claude's audit drops those too. A reviewer asked to find gaps always finds some, and chasing them all leads to over-engineering.
+- **`/codex-review` works without git.** In a project without git (e.g. Diversion), it reviews an explicit list of files instead of failing on `requireGit`, and says that the out-of-scope check is skipped without a diff.
+- **`/codex-do` guards against drift.** Every delegation states the exact files Codex may touch and a verification command that defines "done". Afterwards Claude reports any file changed outside the list as drift (never accepted silently), runs the verification command itself and shows the output. Delegation now requires git, which it needs to detect every changed file.
 
 ### Added
 - **`INVALID_REQUEST` error code** (non-retryable) — e.g. a model the ChatGPT plan does not support now reports the model problem instead of raw JSON.
+- **Model fallback.** If Codex rejects the chosen model for this account, the call retries once with the configured default and notes it in the response.
+- **`skill-codex doctor`** — checks the running build (and a stale `dist/`), Node, the Codex CLI version against the verified one, a live Codex call, the account's models against the configured default, the Windows sandbox mode, the install state (missing, disabled for the project, or installed twice) and npm for a newer skill-codex. `--offline` skips the live checks; `--json` prints machine-readable results.
+- **CLI subcommand registry** (`src/cli/registry.ts`). Subcommands are `CliCommand` objects; `bin/skill-codex.ts` only wires them.
+- **Codex contract** (`src/config/codex-contract.ts`): the flags, event types and verified Codex version skill-codex relies on.
+- **Weekly `codex-drift` workflow.** It installs the latest Codex CLI, checks the contract against `--help` and the upstream `exec_events.rs`, and opens a `codex-cli-drift` issue on breaking drift or on a new Codex minor version.
+- **`/codex-review --spec <path>`** — Codex checks that every requirement in the spec is implemented, every listed edge case has a test, and nothing outside the spec's scope changed. Claude adds a requirements checklist to the result.
+- **One-time version note.** When the installed Codex is a minor version newer or older than the verified one, the first response of a session says so.
 
 ### Removed
 - Parser, progress and live-log handling for `file_read` / `file_write` / `file_edit` items and top-level `result` / `message` events. No version of Codex's `exec --json` schema has emitted them.
 
 ### Fixed
 - A failed command with `exit_code: null` showed "exit null"; it now shows `failed`.
+- `skill-codex --version` printed `0.0.0` from the built bin (it looked for `package.json` inside `dist/`).
 
 ## [0.8.1] - 2026-06-20
 

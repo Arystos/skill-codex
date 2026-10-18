@@ -16,7 +16,7 @@ import {
   type CodexResult,
   type TurnFailure,
 } from "./output-parser.js";
-import { formatProgressMessage } from "./progress.js";
+import { formatProgressMessage, formatHeartbeat, isPlanStep } from "./progress.js";
 import { createLiveLogger } from "../util/live-logger.js";
 import {
   BridgeError,
@@ -197,12 +197,14 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
     });
     process.stderr.write(`[skill-codex] live log: ${logger.path}\n`);
 
-    // Heartbeat so quiet reasoning stretches still show the run is alive.
+    // Heartbeat so quiet reasoning stretches still show the run is alive, with
+    // the current plan step (or last action) for context.
+    let lastPlanStep: string | null = null;
+    let lastAction: string | null = null;
     let heartbeat: ReturnType<typeof setInterval> | null = null;
     if (params.onProgress) {
       heartbeat = setInterval(() => {
-        const secs = Math.round((Date.now() - startedAt) / 1000);
-        params.onProgress?.(`Codex working… ${secs}s elapsed`);
+        params.onProgress?.(formatHeartbeat(Date.now() - startedAt, lastPlanStep, lastAction));
       }, HEARTBEAT_INTERVAL_MS);
       if (typeof heartbeat.unref === "function") heartbeat.unref();
     }
@@ -227,7 +229,11 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
         if (!lineStr) continue;
         try {
           const msg = formatProgressMessage(JSON.parse(lineStr));
-          if (msg) params.onProgress(msg);
+          if (msg) {
+            if (isPlanStep(msg)) lastPlanStep = msg;
+            else if (msg !== "thinking…") lastAction = msg;
+            params.onProgress(msg);
+          }
         } catch {
           // non-JSON line — ignore
         }

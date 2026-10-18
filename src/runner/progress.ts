@@ -83,3 +83,26 @@ export function formatProgressMessage(evt: any): string | null {
   if (isFinalAgentMessage(evt)) return "writing response…";
   return null;
 }
+
+function formatElapsed(ms: number): string {
+  const secs = Math.max(0, Math.round(ms / 1000));
+  if (secs < 60) return `${secs}s`;
+  return `${Math.floor(secs / 60)}m ${String(secs % 60).padStart(2, "0")}s`;
+}
+
+/**
+ * Heartbeat line for quiet stretches. Claude Code moves long MCP calls to a
+ * background task and shows the latest progress there, so the heartbeat
+ * carries the current plan step (or, failing that, the last action) instead
+ * of a bare timer.
+ */
+export function formatHeartbeat(elapsedMs: number, lastPlanStep: string | null, lastAction: string | null): string {
+  const context = lastPlanStep ?? lastAction;
+  const base = `Codex working… ${formatElapsed(elapsedMs)}`;
+  return context ? `${base} · ${context}` : base;
+}
+
+/** Plan updates from todo_list items start with "plan " (see formatTodoList). */
+export function isPlanStep(message: string): boolean {
+  return message.startsWith("plan ");
+}

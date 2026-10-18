@@ -1,98 +1,59 @@
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { runSetup, runUninstall } from "../setup/setup.js";
 import { runVerification } from "../setup/verify.js";
 import { startServer } from "../src/server.js";
+import { getVersion } from "../src/config/version.js";
+import { dispatch, type CliCommand } from "../src/cli/registry.js";
+import { createDoctorCommand } from "../src/cli/commands/doctor.js";
 
-const args = process.argv.slice(2);
-const command = args[0];
-
-function getVersion(): string {
-  const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  const pkgPath = path.resolve(__dirname, "..", "package.json");
-  try {
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
-    return pkg.version ?? "0.0.0";
-  } catch {
-    return "0.0.0";
-  }
-}
-
-async function main(): Promise<void> {
-  if (command === "--help" || command === "-h") {
-    const version = getVersion();
-    process.stdout.write(`skill-codex v${version}
-
-Usage:
-  skill-codex setup          Install MCP server, commands, and hook
-  skill-codex setup --force  Overwrite existing configuration
-  skill-codex verify         Check installation status
-  skill-codex uninstall      Show uninstall instructions
-  skill-codex --help, -h     Show this help message
-  skill-codex --version, -v  Show version
-`);
-    process.exit(0);
-    return;
-  }
-
-  if (command === "--version" || command === "-v") {
-    process.stdout.write(`${getVersion()}\n`);
-    process.exit(0);
-    return;
-  }
-
-  switch (command) {
-    case "setup": {
-      const force = args.includes("--force");
-      const success = await runSetup({ force });
-      process.exit(success ? 0 : 1);
-      break;
-    }
-
-    case "verify": {
+// Subcommands. Add a new one by appending a CliCommand here (see src/cli/registry.ts).
+const COMMANDS: readonly CliCommand[] = [
+  {
+    name: "setup",
+    args: "[--force]",
+    summary: "Install MCP server, commands, and hook (--force overwrites)",
+    async run(args) {
+      return (await runSetup({ force: args.includes("--force") })) ? 0 : 1;
+    },
+  },
+  {
+    name: "verify",
+    summary: "Check installation status",
+    async run(_args, io) {
       const { results, allPassed } = await runVerification();
       for (const check of results) {
-        const icon = check.pass ? "[ok]" : "[!!]";
-        process.stdout.write(`${icon} ${check.name}: ${check.detail}\n`);
+        io.out(`${check.pass ? "[ok]" : "[!!]"} ${check.name}: ${check.detail}\n`);
       }
-      process.exit(allPassed ? 0 : 1);
-      break;
-    }
-
-    case "uninstall": {
+      return allPassed ? 0 : 1;
+    },
+  },
+  createDoctorCommand(),
+  {
+    name: "uninstall",
+    summary: "Show uninstall instructions",
+    async run() {
       await runUninstall();
-      break;
-    }
-
-    case "mcp":
-    case "serve": {
-      // Start the MCP server over stdio. Used by the Claude Code plugin's
-      // .mcp.json via `npx -y skill-codex mcp`. Must NOT write to stdout
-      // (that's the JSON-RPC channel) or call process.exit — the process
-      // stays alive for the stdio transport.
+      return 0;
+    },
+  },
+  {
+    name: "mcp",
+    aliases: ["serve"],
+    summary: "Start the MCP server over stdio (used by the plugin)",
+    async run() {
+      // Used by the Claude Code plugin's .mcp.json via `npx -y skill-codex mcp`.
+      // Must NOT write to stdout (that's the JSON-RPC channel) or exit — the
+      // process stays alive for the stdio transport.
       await startServer();
-      break;
-    }
+      return null;
+    },
+  },
+];
 
-    default: {
-      const version = getVersion();
-      process.stdout.write(`skill-codex v${version}
-
-Usage:
-  skill-codex setup          Install MCP server, commands, and hook
-  skill-codex setup --force  Overwrite existing configuration
-  skill-codex verify         Check installation status
-  skill-codex uninstall      Show uninstall instructions
-  skill-codex --help, -h     Show this help message
-  skill-codex --version, -v  Show version
-`);
-      process.exit(command ? 1 : 0);
-    }
-  }
-}
-
-main().catch((err) => {
-  process.stderr.write(`Error: ${err instanceof Error ? err.message : String(err)}\n`);
-  process.exit(1);
-});
+dispatch(process.argv.slice(2), COMMANDS, getVersion())
+  .then((code) => {
+    if (code !== null) process.exit(code);
+  })
+  .catch((err: unknown) => {
+    process.stderr.write(`Error: ${err instanceof Error ? err.message : String(err)}\n`);
+    process.exit(1);
+  });

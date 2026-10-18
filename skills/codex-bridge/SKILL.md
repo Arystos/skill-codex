@@ -55,30 +55,30 @@ Use when the user asks for a bounded implementation task with a clear spec.
 
 **Steps:**
 
-1. **Verify the task is well-scoped.** If the request is vague, ask one clarifying question before delegating. A good delegation prompt has: exact file paths, specific change required, constraints (language, style, naming), and a clear "done" condition.
+1. **Verify the task is well-scoped and the project uses git.** If the request is vague, ask one clarifying question before delegating. Delegation needs git to detect every changed file; in a project without git (e.g. Diversion), do the task yourself instead.
 
-2. **Announce the delegation.** Tell the user: `Delegating [task] to Codex.` Never invoke Codex silently.
+2. **Fix the scope.** Every delegation needs an **allowed file list** (the exact paths Codex may create, modify or delete) and a **verification command** that defines "done" and prints pass/fail (tests or a build). Derive both from the task; if you can't name either with confidence, ask the user.
 
-3. **Prepare a self-contained prompt.** Include:
-   - Exact file paths to create or modify (absolute or repo-relative)
+3. **Announce the delegation.** Tell the user: `Delegating [task] to Codex.`, with the allowed files and the verification command. Never invoke Codex silently.
+
+4. **Prepare a self-contained prompt.** Include:
    - The specific change, with before/after examples if helpful
+   - "You may modify ONLY these files: <allowed files>. Do not create, edit or delete any other file; if another file seems necessary, stop and say which one and why."
+   - "Done means this command passes: `<verification command>`."
    - Coding style constraints (e.g., "TypeScript strict, no `any`, immutable patterns")
-   - What success looks like (e.g., "tests pass, no new lint errors")
 
-4. **Call the `codex_exec` MCP tool** with:
+5. **Call the `codex_exec` MCP tool** with:
    ```
    prompt: <the self-contained prompt>
    mode: "full-auto"
    requireGit: true
    ```
 
-5. **Review Codex's output critically.** Run `git status --short` (catches new files that `git diff` misses), then `git diff`, to see exactly what changed. Check for:
-   - Introduced bugs, logic errors, or regressions
-   - Style violations against the project's conventions
-   - Files modified outside the requested scope
-   - Missing test coverage if tests were part of the task
+6. **Check for drift.** Run `git status --short` (catches new files that `git diff` misses) and compare every changed path with the allowed list. Report anything outside it as drift, and offer to revert it — never accept it silently.
 
-6. **Present the result with your assessment.** State what Codex did correctly, what needs adjustment, and either accept the changes or fix/re-delegate. Codex is a **peer, not an authority** — you own the final quality.
+7. **Review the in-scope changes** with `git diff` and by reading new files: correctness, security, regressions. Skip style nits.
+
+8. **Run the verification command yourself** and show the output. The task is done only if it passes and no unapproved drift remains. Codex is a **peer, not an authority** — you own the final quality.
 
 ### Workflow 2: Independent code review (`review`)
 
@@ -86,22 +86,26 @@ Use when the user wants a second-opinion review of a diff, branch, or commit.
 
 **Steps:**
 
-1. **Determine the scope of the review:**
+1. **Determine the scope of the review.** Check `git rev-parse --is-inside-work-tree` first.
    - No argument → run `git status --short` first to catch new untracked files (`??`), then collect `git diff` (unstaged) + `git diff --cached` (staged), and include the contents of any new untracked files — plain `git diff` is blind to them
    - Branch name → `git diff <branch>...HEAD`
    - SHA → `git show <sha>`
+   - **No git** (git missing, or another VCS such as Diversion) → review an explicit list of files instead (ask for it if none was given), send their full contents with `requireGit: false`, and say that without a diff the out-of-scope check is skipped.
    - If there are no changes at all, tell the user and stop.
+   - Optional **spec** (`--spec <path>` on `/codex-review`): include its contents and ask Codex to check that every requirement is implemented, every listed edge case has a test, and nothing outside the spec's scope changed.
 
 2. **Check diff size.** If the diff exceeds ~50,000 characters, summarize it first and warn the user that Codex will see a truncated version.
 
 3. **Call the `codex_exec` MCP tool** in read-only mode:
    ```
-   prompt: "Review the following code changes. For each finding, specify: severity (CRITICAL/HIGH/MEDIUM/LOW), file and line, description, and suggested fix. Focus on: bugs, security, performance, error handling, readability.\n\n```diff\n<diff>\n```"
+   prompt: "Review the following code changes. Report only: (1) correctness bugs, (2) security issues, (3) gaps against the stated requirements. Do NOT report style, naming, formatting or readability. Do NOT suggest defensive checks for states the code cannot reach. An empty review is a valid result. For each finding, give: severity (CRITICAL/HIGH/MEDIUM/LOW), category, file and line, description, and suggested fix.\n\nStated requirements: <the task, or 'none given'>\n\n```diff\n<diff>\n```"
    mode: "exec"
-   requireGit: true
+   requireGit: true   # false for a file review without git
    ```
 
-4. **Audit each finding against the actual code** before trusting it. For each finding Codex returned, open the cited file/line and classify it: **keep** (confirmed — quote the offending code as evidence), **rewrite** (real, but Codex got the severity/location/explanation wrong — restate with evidence), **drop** (not real — give a typed reason: `codebase-convention`, `pre-existing`, `cannot-occur`, `out-of-scope`, or `false-claim`), or **new** (a real issue Codex missed, found while auditing — add with evidence). `keep`/`rewrite`/`new` must cite concrete code; only they carry forward.
+   A reviewer asked to find gaps always finds some, and chasing all of them leads to over-engineering. Keep the focus on failures, vulnerabilities and missed requirements — in Codex's prompt and in your own audit.
+
+4. **Audit each finding against the actual code** before trusting it. For each finding Codex returned, open the cited file/line and classify it: **keep** (confirmed — quote the offending code as evidence), **rewrite** (real, but Codex got the severity/location/explanation wrong — restate with evidence), **drop** (not real — give a typed reason: `codebase-convention`, `pre-existing`, `cannot-occur` — including defensive checks for unreachable states, `out-of-scope` — including style and readability, or `false-claim`), or **new** (a real issue Codex missed, found while auditing — add with evidence). `keep`/`rewrite`/`new` must cite concrete code; only they carry forward.
 
 5. **Assign an overall verdict from the audited findings** (you are the final judge, not a relay): **BLOCKED** (≥1 surviving CRITICAL/HIGH), **WARNING** (only surviving MEDIUM/LOW), or **APPROVED** (nothing survived). State it explicitly, e.g. `Verdict: BLOCKED — 1 CRITICAL (2 of Codex's findings dropped)`.
 
@@ -140,7 +144,7 @@ The skill-codex MCP server exposes exactly one tool: `codex_exec`.
 | `mode` | `"exec"` \| `"full-auto"` | no (default `"exec"`) | `exec` is read-only; `full-auto` allows file writes |
 | `sandbox` | `"read-only"` \| `"workspace-write"` \| `"danger-full-access"` | no | Explicit sandbox policy; overrides `mode`. Use `danger-full-access` only when you understand the risk |
 | `sessionId` | string | no | Resume a prior Codex session (the thread id from a previous response) so Codex keeps context across calls |
-| `model` | string | no | Codex model to use. Omit to use Codex's configured default |
+| `model` | string | no | Codex model. The tool's `model` description lists the models on this account; pick one to fit the task, or omit for the user's default |
 | `reasoningEffort` | `"minimal"` \| `"low"` \| `"medium"` \| `"high"` \| `"xhigh"` | no | How much reasoning effort Codex spends. Omit for the model's default |
 | `review` | boolean | no | Run Codex's native diff-scoped review (`codex exec review`) instead of a freeform prompt |
 | `reviewBase` | string | no | With `review`: diff against this base branch |
@@ -149,7 +153,9 @@ The skill-codex MCP server exposes exactly one tool: `codex_exec`.
 | `timeoutMs` | number | no | Override default 5min timeout |
 | `requireGit` | boolean | no | Refuse to run if cwd is not a git repo (recommended `true` for `full-auto`) |
 
-**Command flags:** the `/codex-review`, `/codex-do`, and `/codex-consult` commands accept optional `--effort <level>` (`minimal`|`low`|`medium`|`high`|`xhigh`) and `--model <name>` flags in their arguments. Parse and strip them, then pass through as `reasoningEffort` / `model`. Omit either flag to defer to Codex's configured default (`~/.codex/config.toml`) — never invent a value.
+**Command flags:** the `/codex-review`, `/codex-do`, and `/codex-consult` commands accept optional `--effort <level>` (`minimal`|`low`|`medium`|`high`|`xhigh`) and `--model <name>` flags in their arguments. Parse and strip them, then pass through as `reasoningEffort` / `model`; an explicit flag always wins. Without `--effort`, omit `reasoningEffort`.
+
+**Model routing:** without `--model`, choose the model yourself from the list in the `codex_exec` tool's `model` parameter. Use the strongest listed model for reviews, security-sensitive and multi-file work, and a fast one for quick questions, summaries and small edits. Use only listed slugs. If no list is shown or you are unsure, omit `model` for the user's default. A model Codex rejects falls back to the default automatically, and the response header shows the model that ran.
 
 **Modes:**
 - `exec` → read-only. Use for review and consult.
@@ -162,10 +168,11 @@ The skill-codex MCP server exposes exactly one tool: `codex_exec`.
 **User says:** "Write unit tests for `src/util/platform.ts`. Use vitest. Cover the `getClaudeDir` and `getHomeDir` functions including Windows/macOS/Linux branches."
 
 **Actions:**
-1. Announce: `Delegating test generation to Codex.`
-2. Call `codex_exec` with `mode: "full-auto"`, `requireGit: true`, and a prompt specifying: the target file, test framework (vitest), test file path (`__tests__/util/platform.test.ts`), the two functions to cover, the three OS branches, and the project convention (TS strict, no `any`).
-3. `git diff` → verify only the new test file was created, imports are correct, no existing files touched.
-4. Report: `Codex generated 6 tests covering all three OS branches. All pass locally. No files outside scope modified.`
+1. Announce: `Delegating test generation to Codex. Allowed files: __tests__/util/platform.test.ts. Verification: npx vitest run __tests__/util/platform.test.ts`
+2. Call `codex_exec` with `mode: "full-auto"`, `requireGit: true`, and a prompt specifying: the target file, test framework (vitest), the allowed file list (only `__tests__/util/platform.test.ts`), the two functions to cover, the three OS branches, the verification command, and the project convention (TS strict, no `any`).
+3. `git status --short` → the only change is the new test file, so there is no drift. Read it: imports are correct.
+4. Run `npx vitest run __tests__/util/platform.test.ts` yourself and show the output.
+5. Report: `Codex generated 6 tests covering all three OS branches. Verification passed (output above). Drift: none.`
 
 ### Example 2: Review — pre-commit diff
 
@@ -218,4 +225,4 @@ The skill-codex MCP server exposes exactly one tool: `codex_exec`.
 - **Fail soft.** If `codex_exec` errors (Codex missing, auth expired, offline), say so and continue with Claude-only work — never block the user on a missing Codex.
 - **Codex is a peer, not an authority.** Every output must pass your review.
 - **Do not delegate trivial tasks** (<50 lines or <2 minutes of direct work). Overhead exceeds benefit.
-- **Pair `full-auto` with `requireGit: true`** so Codex refuses to touch non-git directories.
+- **Pair `full-auto` with `requireGit: true`** so Codex refuses to touch non-git directories, and always give it an allowed file list and a verification command.

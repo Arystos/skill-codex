@@ -17,3 +17,9 @@ describe("truncateResponse", () => {
     expect(truncateResponse("12345", 5)).toBe("12345");
   });
 });
+
+describe("truncateResponse with a saved full output", () => {
+  it("names the file holding the full text", () => {
+    expect(truncateResponse("abcdefghij", 5, "/tmp/full.md")).toContain("5 characters omitted. Full output: /tmp/full.md]");
+  });
+});

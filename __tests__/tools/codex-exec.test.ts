@@ -15,10 +15,32 @@ vi.mock("../../src/runner/retry.js", () => ({
   withRetry: vi.fn((fn: () => Promise<unknown>) => fn()),
 }));
 
+// Keep tests off the real codex binary (version check, model catalog).
+vi.mock("../../src/codex/version-check.js", () => ({
+  takeCodexVersionNotice: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock("../../src/codex/models.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../src/codex/models.js")>()),
+  listAvailableModels: vi.fn().mockResolvedValue([]),
+  readConfiguredModel: vi.fn().mockReturnValue(null),
+}));
+
 import { runPreflight } from "../../src/guards/preflight.js";
 import { execCodex } from "../../src/runner/exec-runner.js";
 import { withRetry } from "../../src/runner/retry.js";
-import { handleCodexExec, inputSchema, TOOL_INPUT_JSON_SCHEMA } from "../../src/tools/codex-exec.js";
+import { takeCodexVersionNotice } from "../../src/codex/version-check.js";
+import { listAvailableModels, readConfiguredModel } from "../../src/codex/models.js";
+import { InvalidRequestError } from "../../src/errors/errors.js";
+import { MAX_RESPONSE_CHARS } from "../../src/config/constants.js";
+import fs from "node:fs";
+import {
+  handleCodexExec,
+  inputSchema,
+  getToolDefinition,
+  MODEL_DESCRIPTION,
+  TOOL_INPUT_JSON_SCHEMA,
+} from "../../src/tools/codex-exec.js";
 
 const mockRunPreflight = vi.mocked(runPreflight);
 const mockExecCodex = vi.mocked(execCodex);
@@ -306,5 +328,90 @@ describe("handleCodexExec", () => {
   it("allows a review call with no prompt (custom instructions are optional)", async () => {
     const result = await handleCodexExec({ mode: "exec", review: true, requireGit: false }, REAL_CWD);
     expect(result.isError).toBeFalsy();
+  });
+});
+
+describe("getToolDefinition", () => {
+  it("appends the account's models to the model description", async () => {
+    vi.mocked(listAvailableModels).mockResolvedValueOnce([
+      { slug: "gpt-6-luna", description: "Fast." },
+      { slug: "gpt-5.6-terra", description: "Balanced." },
+    ]);
+    vi.mocked(readConfiguredModel).mockReturnValueOnce("gpt-6-luna");
+    const def = await getToolDefinition();
+    const desc = def.inputSchema.properties.model.description;
+    expect(desc.startsWith(MODEL_DESCRIPTION)).toBe(true);
+    expect(desc).toContain("- gpt-6-luna: Fast. (user's default)");
+    expect(desc).toContain("- gpt-5.6-terra: Balanced.");
+    // the static schema is left untouched
+    expect(TOOL_INPUT_JSON_SCHEMA.properties.model.description).toBe(MODEL_DESCRIPTION);
+  });
+
+  it("falls back to the static schema when no models are known", async () => {
+    const def = await getToolDefinition();
+    expect(def.inputSchema).toBe(TOOL_INPUT_JSON_SCHEMA);
+  });
+
+  it("uses the same model description in the zod schema", () => {
+    expect(inputSchema.shape.model.description).toBe(MODEL_DESCRIPTION);
+  });
+});
+
+describe("handleCodexExec model fallback and notes", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRunPreflight.mockResolvedValue({ lockHandle: makeLockHandle() });
+  });
+
+  it("retries once with the default model when Codex rejects the chosen model", async () => {
+    mockExecCodex
+      .mockRejectedValueOnce(
+        new InvalidRequestError("The 'gpt-6.1-sol' model is not supported when using Codex with a ChatGPT account."),
+      )
+      .mockResolvedValueOnce({ content: "ok", activity: [], usage: null, raw: "" });
+
+    const result = await handleCodexExec({ prompt: "x", mode: "exec", model: "gpt-6.1-sol", requireGit: false }, REAL_CWD);
+
+    expect(result.isError).toBeFalsy();
+    expect(mockExecCodex).toHaveBeenCalledTimes(2);
+    expect(mockExecCodex.mock.calls[1]?.[0].model).toBeUndefined();
+    const text = result.content[0].text;
+    expect(text).toContain("note: model gpt-6.1-sol was rejected (The 'gpt-6.1-sol' model is not supported");
+    expect(text.split("\n")[0]).not.toContain("gpt-6.1-sol");
+  });
+
+  it("does not retry other invalid requests or calls without a model", async () => {
+    mockExecCodex.mockRejectedValue(new InvalidRequestError("Unsupported parameter: foo."));
+    const withModel = await handleCodexExec({ prompt: "x", mode: "exec", model: "m1", requireGit: false }, REAL_CWD);
+    expect(withModel.isError).toBe(true);
+    expect(mockExecCodex).toHaveBeenCalledTimes(1);
+
+    mockExecCodex.mockReset();
+    mockExecCodex.mockRejectedValue(new InvalidRequestError("The 'm1' model is not supported."));
+    const noModel = await handleCodexExec({ prompt: "x", mode: "exec", requireGit: false }, REAL_CWD);
+    expect(noModel.isError).toBe(true);
+    expect(mockExecCodex).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the Codex version notice as a note", async () => {
+    vi.mocked(takeCodexVersionNotice).mockResolvedValueOnce("codex-cli 0.170.0 is newer than 0.163.0");
+    mockExecCodex.mockResolvedValueOnce({ content: "ok", activity: [], usage: null, raw: "" });
+    const result = await handleCodexExec({ prompt: "x", mode: "exec", requireGit: false }, REAL_CWD);
+    expect(result.content[0].text).toContain("note: codex-cli 0.170.0 is newer than 0.163.0");
+  });
+
+  it("saves an over-long answer and points to it", async () => {
+    mockExecCodex.mockResolvedValueOnce({
+      content: "y".repeat(MAX_RESPONSE_CHARS + 5),
+      activity: [],
+      usage: null,
+      raw: "",
+    });
+    const result = await handleCodexExec({ prompt: "x", mode: "exec", requireGit: false }, REAL_CWD);
+    const match = result.content[0].text.match(/Full output: (.+)\]$/);
+    expect(match?.[1]).toBeDefined();
+    const saved = match?.[1] as string;
+    expect(fs.readFileSync(saved, "utf-8").length).toBe(MAX_RESPONSE_CHARS + 5);
+    fs.rmSync(saved, { force: true });
   });
 });

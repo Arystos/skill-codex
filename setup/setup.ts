@@ -5,6 +5,7 @@ import { installCommands } from "./install-commands.js";
 import { installHook } from "./install-hook.js";
 import { installSkill, uninstallSkill } from "./install-skill.js";
 import { runVerification } from "./verify.js";
+import { detectInstall } from "../src/install/detect.js";
 import {
   getGlobalMcpConfigPath,
   getGlobalCommandsDir,
@@ -17,6 +18,16 @@ function log(icon: string, message: string): void {
 
 export async function runSetup(options: { force?: boolean } = {}): Promise<boolean> {
   log(">>", "skill-codex setup\n");
+
+  // Installing both ways registers the MCP server, commands and hook twice.
+  const { pluginIds } = detectInstall();
+  if (pluginIds.length > 0 && !options.force) {
+    log("[!!]", `skill-codex is already installed as a Claude Code plugin (${pluginIds.join(", ")}).`);
+    log("  ", "Setup would register the MCP server, commands and hook a second time.");
+    log("  ", "Keep the plugin, or remove it first: /plugin uninstall skill-codex@skill-codex");
+    log("  ", "Rerun with --force to install anyway.\n");
+    return false;
+  }
 
   // Step 1: Install MCP server
   log("  ", "Registering MCP server...");

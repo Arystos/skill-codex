@@ -43,8 +43,8 @@ describe("formatLogLines", () => {
     ).toEqual([]);
   });
 
-  it("renders legacy message type", () => {
-    expect(formatLogLines({ type: "message", content: "legacy" })).toEqual(["  msg    legacy"]);
+  it("ignores the never-emitted top-level message type", () => {
+    expect(formatLogLines({ type: "message", content: "legacy" })).toEqual([]);
   });
 
   it("renders token usage from turn.completed, with and without reasoning", () => {

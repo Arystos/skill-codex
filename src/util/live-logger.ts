@@ -72,10 +72,6 @@ export function formatLogLines(evt: any): string[] {
     return [`  msg    ${oneLine(item.text, 400)}`];
   }
 
-  if (evt.type === "message" && typeof evt.content === "string") {
-    return [`  msg    ${oneLine(evt.content, 400)}`];
-  }
-
   if (evt.type === "turn.completed" && evt.usage) {
     const u = evt.usage;
     const reasoning = u.reasoning_output_tokens ?? 0;

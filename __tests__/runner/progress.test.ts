@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatProgressMessage } from "../../src/runner/progress.js";
+import { formatProgressMessage, formatHeartbeat, isPlanStep } from "../../src/runner/progress.js";
 
 describe("formatProgressMessage", () => {
   it("reports a running command", () => {
@@ -197,5 +197,30 @@ describe("formatProgressMessage", () => {
     expect(formatProgressMessage(null)).toBeNull();
     expect(formatProgressMessage("nope")).toBeNull();
     expect(formatProgressMessage({})).toBeNull();
+  });
+});
+
+describe("formatHeartbeat", () => {
+  it("shows a bare timer when nothing has happened yet", () => {
+    expect(formatHeartbeat(12_400, null, null)).toBe("Codex working… 12s");
+  });
+
+  it("switches to minutes after a minute", () => {
+    expect(formatHeartbeat(130_000, null, null)).toBe("Codex working… 2m 10s");
+  });
+
+  it("prefers the plan step over the last action", () => {
+    expect(formatHeartbeat(65_000, "plan 2/5: write tests", "ran: npm test")).toBe(
+      "Codex working… 1m 05s · plan 2/5: write tests",
+    );
+    expect(formatHeartbeat(5_000, null, "ran: npm test")).toBe("Codex working… 5s · ran: npm test");
+  });
+});
+
+describe("isPlanStep", () => {
+  it("recognises todo_list progress lines", () => {
+    expect(isPlanStep("plan 1/3: do it")).toBe(true);
+    expect(isPlanStep("plan 2/2 done")).toBe(true);
+    expect(isPlanStep("ran: plan")).toBe(false);
   });
 });

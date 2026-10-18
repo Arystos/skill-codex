@@ -4,28 +4,17 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import {
-  TOOL_NAME,
-  TOOL_DESCRIPTION,
-  TOOL_INPUT_JSON_SCHEMA,
-  inputSchema,
-  handleCodexExec,
-} from "./tools/codex-exec.js";
+import { TOOL_NAME, inputSchema, handleCodexExec, getToolDefinition } from "./tools/codex-exec.js";
+import { formatBuildInfo, getBuildInfo, getVersion } from "./config/version.js";
 
 export function createServer(cwd: string): Server {
   const server = new Server(
-    { name: "skill-codex", version: "0.8.1" },
+    { name: "skill-codex", version: getVersion() },
     { capabilities: { tools: {} } },
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: [
-      {
-        name: TOOL_NAME,
-        description: TOOL_DESCRIPTION,
-        inputSchema: TOOL_INPUT_JSON_SCHEMA,
-      },
-    ],
+    tools: [await getToolDefinition()],
   }));
 
   server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
@@ -79,7 +68,8 @@ export async function startServer(): Promise<void> {
   const server = createServer(cwd);
   const transport = new StdioServerTransport();
 
-  process.stderr.write("[skill-codex] MCP server starting...\n");
+  // Names the running build, so a stale dist is visible in the MCP server log.
+  process.stderr.write(`[skill-codex] MCP server starting: ${formatBuildInfo(getBuildInfo())}\n`);
 
   await server.connect(transport);
 

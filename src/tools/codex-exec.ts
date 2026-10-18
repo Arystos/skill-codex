@@ -4,13 +4,27 @@ import { z } from "zod";
 import { runPreflight } from "../guards/preflight.js";
 import { execCodex } from "../runner/exec-runner.js";
 import { withRetry } from "../runner/retry.js";
-import { BridgeError } from "../errors/errors.js";
+import { InvalidRequestError } from "../errors/errors.js";
 import type { CodexResult } from "../runner/output-parser.js";
+import { describeModelsForTool, listAvailableModels, readConfiguredModel } from "../codex/models.js";
+import { takeCodexVersionNotice } from "../codex/version-check.js";
+import { formatError, formatRichResponse, saveFullOutput } from "./format-response.js";
 
 export const TOOL_NAME = "codex_exec";
 
 export const TOOL_DESCRIPTION =
   "Execute a task using OpenAI Codex CLI. Use for code review, implementation tasks, or getting a second opinion. Codex output is a SUGGESTION — evaluate it critically before applying.";
+
+/**
+ * Shared by the zod schema and the advertised JSON Schema. At tools/list time
+ * the server appends this account's live model list (see getToolDefinition),
+ * so Claude can route by task without a frozen, plan-dependent catalog.
+ */
+export const MODEL_DESCRIPTION =
+  "Codex model for this call. If the user named a model, use exactly that. Otherwise choose from the models listed below to fit the task: " +
+  "the strongest one for code review, security-sensitive or multi-file implementation work; a fast, cheap one for quick questions, summaries and small edits. " +
+  "Omit it to use the user's configured default, which is also the safe choice when unsure or when no list is shown. " +
+  "A model Codex rejects for this account falls back to the default automatically.";
 
 export const inputSchema = z.object({
   prompt: z.string().optional().describe("The task description for Codex"),
@@ -35,9 +49,7 @@ export const inputSchema = z.object({
     .string()
     .regex(/^[A-Za-z0-9._-]{1,64}$/)
     .optional()
-    .describe(
-      "Codex model to use (e.g. gpt-6.1-sol, gpt-6-luna; availability depends on your ChatGPT plan, run `codex debug models` to list yours). Omit to use Codex's configured default.",
-    ),
+    .describe(MODEL_DESCRIPTION),
   reasoningEffort: z
     .enum(["minimal", "low", "medium", "high", "xhigh"])
     .optional()
@@ -96,8 +108,7 @@ export const TOOL_INPUT_JSON_SCHEMA = {
     model: {
       type: "string",
       pattern: "^[A-Za-z0-9._-]{1,64}$",
-      description:
-        "Codex model to use (e.g. gpt-6.1-sol, gpt-6-luna; availability depends on your ChatGPT plan, run `codex debug models` to list yours). Omit to use Codex's configured default.",
+      description: MODEL_DESCRIPTION,
     },
     reasoningEffort: {
       type: "string",
@@ -130,79 +141,67 @@ export const TOOL_INPUT_JSON_SCHEMA = {
   required: [],
 };
 
-function formatError(err: unknown): string {
-  if (err instanceof BridgeError) {
-    return `[skill-codex error: ${err.code}] ${err.message}`;
-  }
-  if (err instanceof Error) {
-    return `[skill-codex error] ${err.message}`;
-  }
-  return `[skill-codex error] Unknown error: ${String(err)}`;
+/**
+ * The tool as advertised in tools/list: the static schema plus this account's
+ * live model list in the `model` description. Falls back to the static schema
+ * when the catalog can't be read.
+ */
+export async function getToolDefinition(): Promise<{
+  name: string;
+  description: string;
+  inputSchema: typeof TOOL_INPUT_JSON_SCHEMA;
+}> {
+  const modelList = describeModelsForTool(await listAvailableModels(), readConfiguredModel());
+  const inputSchema = modelList
+    ? {
+        ...TOOL_INPUT_JSON_SCHEMA,
+        properties: {
+          ...TOOL_INPUT_JSON_SCHEMA.properties,
+          model: { ...TOOL_INPUT_JSON_SCHEMA.properties.model, description: `${MODEL_DESCRIPTION}\n\n${modelList}` },
+        },
+      }
+    : TOOL_INPUT_JSON_SCHEMA;
+  return { name: TOOL_NAME, description: TOOL_DESCRIPTION, inputSchema };
 }
 
-function formatRichResponse(
-  result: CodexResult,
+function isModelRejection(err: unknown): err is InvalidRequestError {
+  return err instanceof InvalidRequestError && /model/i.test(err.detail);
+}
+
+/**
+ * Run Codex; if Claude picked a model this account can't use, retry once with
+ * the configured default and say so — a routing guess must never fail a call.
+ */
+async function runWithModelFallback(
   input: CodexExecInput,
   cwd: string,
-): string {
-  const lines: string[] = [];
-
-  // On resume, no --sandbox is sent (the session keeps its original policy), so
-  // labelling it with a specific mode would be misleading — show "resumed" instead.
-  const sandboxLabel = input.sandbox ?? (input.mode === "full-auto" ? "workspace-write" : "read-only");
-  const label = input.review ? "review" : input.sessionId ? "resumed" : sandboxLabel;
-  const metaParts: string[] = [label];
-
-  if (input.model) {
-    metaParts.push(input.model);
-  }
-
-  if (input.reasoningEffort) {
-    metaParts.push(`effort:${input.reasoningEffort}`);
-  }
-
-  metaParts.push(cwd);
-
-  if (typeof result.durationMs === "number") {
-    metaParts.push(`${(result.durationMs / 1000).toFixed(1)}s`);
-  }
-
-  if (result.usage) {
-    const {
-      input_tokens: inp,
-      output_tokens: out,
-      cached_input_tokens: cached,
-      reasoning_output_tokens: reasoning,
-    } = result.usage;
-    metaParts.push(
-      `${inp} tok in${cached > 0 ? ` (${cached} cached)` : ""} \u2192 ${out} out${reasoning > 0 ? ` (+${reasoning} reasoning)` : ""}`,
+  onProgress?: (message: string) => void,
+): Promise<{ result: CodexResult; model: string | undefined; fallbackNote: string | null }> {
+  const run = (model: string | undefined): Promise<CodexResult> =>
+    withRetry(() =>
+      execCodex({
+        prompt: input.prompt ?? "",
+        cwd,
+        mode: input.mode,
+        sandbox: input.sandbox,
+        sessionId: input.sessionId,
+        model,
+        reasoningEffort: input.reasoningEffort,
+        review: input.review,
+        reviewBase: input.reviewBase,
+        reviewCommit: input.reviewCommit,
+        timeoutMs: input.timeoutMs,
+        onProgress,
+      }),
     );
+
+  try {
+    return { result: await run(input.model), model: input.model, fallbackNote: null };
+  } catch (err) {
+    if (!input.model || !isModelRejection(err)) throw err;
+    const fallbackNote = `model ${input.model} was rejected (${err.detail.replace(/\.\s*$/, "")}) — ran with the configured default instead.`;
+    return { result: await run(undefined), model: undefined, fallbackNote };
   }
-
-  lines.push(`[${metaParts.join(" \u2502 ")}]`);
-
-  if (result.sessionId) {
-    lines.push(`  session: ${result.sessionId} (pass as sessionId to continue this conversation)`);
-  }
-
-  if (result.logPath) {
-    lines.push(`  live log: ${result.logPath}`);
-  }
-
-  if (result.activity.length > 0) {
-    for (const a of result.activity) {
-      if (a.type === "exec") {
-        lines.push(`  ${a.icon} exec: ${a.command}  (${a.status})`);
-      } else if (a.type === "write") {
-        lines.push(`  \u270E write: ${a.path}`);
-      }
-    }
-  }
-
-  lines.push("");
-  lines.push(result.content);
-
-  return lines.join("\n");
 }
 
 export async function handleCodexExec(
@@ -256,24 +255,12 @@ export async function handleCodexExec(
     });
     lockRelease = lockHandle?.release ?? null;
 
-    const result = await withRetry(() =>
-      execCodex({
-        prompt: input.prompt ?? "",
-        cwd,
-        mode: input.mode,
-        sandbox: input.sandbox,
-        sessionId: input.sessionId,
-        model: input.model,
-        reasoningEffort: input.reasoningEffort,
-        review: input.review,
-        reviewBase: input.reviewBase,
-        reviewCommit: input.reviewCommit,
-        timeoutMs: input.timeoutMs,
-        onProgress,
-      }),
-    );
+    const versionNotice = await takeCodexVersionNotice();
+    const run = await runWithModelFallback(input, cwd, onProgress);
+    const notes = [versionNotice, run.fallbackNote].filter((n): n is string => n !== null);
+    const fullOutputPath = saveFullOutput(run.result.content, run.result.logPath);
 
-    const formatted = formatRichResponse(result, input, cwd);
+    const formatted = formatRichResponse(run.result, { ...input, model: run.model }, cwd, { notes, fullOutputPath });
     return {
       content: [{ type: "text", text: formatted }],
     };
