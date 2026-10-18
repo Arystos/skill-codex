@@ -1,6 +1,6 @@
 ---
 name: codex-bridge
-description: Delegates bounded implementation work to OpenAI Codex via the codex_exec MCP tool, and uses Codex as an independent reviewer or second opinion. Use when the user asks to implement, write, generate, scaffold, port, refactor, migrate, or add tests for a well-scoped code task — especially phrases like "implement X", "write a function that", "generate tests for", "port this to", "refactor this file", "convert this", "add boilerplate", "create a script", "write a migration". Also use when the user asks for a second opinion, independent review, code review, or to double-check logic, security, or correctness of a diff. Do NOT use for architecture decisions, brainstorming, cross-module refactors needing deep context, or tasks under ~50 lines that are faster to do directly.
+description: Uses OpenAI Codex, via the codex_exec MCP tool, as an independent second reviewer, a consultant, and a worker for well-scoped tasks. Use proactively, without being asked, to get an independent review before calling a non-trivial change done: roughly 50+ changed lines, or any change to auth, security, payments, crypto, concurrency or data migrations. Use proactively to consult Codex when a bug survives two fix attempts. Use when the user asks for a review, second opinion or double-check of a diff, or asks to delegate, generate tests, port, scaffold or refactor a well-scoped task. Delegate only when you can name the allowed files and a verification command. Do NOT use for design decisions, brainstorming, small edits, tasks needing deep conversation context, or when the user asks you to work without Codex.
 license: MIT
 metadata:
   author: Arystos
@@ -15,27 +15,28 @@ This skill turns OpenAI Codex into a peer engineer you can delegate bounded impl
 
 ## When to use this skill
 
-Load this skill automatically when the user's request matches any of the following patterns:
+Some triggers need no request from the user: decide yourself, then announce it. Others start from what the user asks.
 
-**Delegation triggers** (use `delegate` workflow below):
-- "implement X" / "write a function that X" / "create a script that X"
-- "generate tests for X" / "add unit tests" / "scaffold tests"
-- "port X to Y" / "convert X to Y" / "rewrite X in Y"
-- "refactor this file" (single-file, clear target)
-- "write a migration" / "create boilerplate for X"
-- Any bounded, single-file or small multi-file code task with a clear spec
+**Proactive triggers** (no request needed):
+- **Review before "done"** (use `review` workflow below): you finished a non-trivial change and are about to call it done, commit it, or open a PR. Non-trivial means roughly 50+ changed lines, or any change to auth, security, payments, crypto, concurrency or data migrations. Review each change once; after fixes, review again only inside the bounded fix loop.
+- **Consult when stuck** (use `consult` workflow below): a bug survives two fix attempts, or you are choosing between two approaches and the wrong choice is costly.
 
-**Review triggers** (use `review` workflow below):
+**Review triggers** (on request):
 - "review my changes" / "review this diff" / "code review"
 - "second opinion on this code" / "independent review"
 - "check this for bugs" / "audit this for security issues"
-- Before committing critical code (auth, payments, crypto, concurrency)
 
-**Consult triggers** (use `consult` workflow below):
+**Consult triggers** (on request):
 - "what do you think about this approach"
 - "is this the right way to do X"
 - "second opinion on my plan"
-- Debugging when Claude has failed 3+ times on the same issue
+
+**Delegation triggers** (use `delegate` workflow below):
+- The user asks to delegate, or to hand a task to Codex
+- "generate tests for X" / "add unit tests" / "scaffold tests"
+- "port X to Y" / "convert X to Y" / "write a migration" / "create boilerplate for X"
+- "refactor this file" (single-file, clear target)
+- Only when you can name the allowed files and a verification command; otherwise do the task yourself or ask
 
 ## When NOT to use this skill
 
@@ -45,7 +46,8 @@ Skip Codex and do the work yourself when:
 - Cross-module architectural refactor
 - Ambiguous requirements needing user clarification
 - Planning, brainstorming, or design decisions (Claude handles these)
-- User explicitly asks you to do the work yourself
+- User explicitly asks you to do the work yourself, or to work without Codex
+- Codex already reviewed the same diff and nothing changed since
 
 ## Workflows
 

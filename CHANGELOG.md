@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 ### Added
 - **`outputSchema` on `codex_exec`** (#20). Pass an inline JSON Schema and Codex constrains its final message to it (`codex exec --output-schema`), e.g. review findings as `{severity, file, line, fix}`. skill-codex writes the schema to a private temp file and deletes it when the call ends. The response shows the final message as a JSON block. Works with `sessionId`; rejected with `review`. Codex uses OpenAI strict mode, so a non-strict schema fails with `INVALID_REQUEST`. On Windows, path arguments to the codex spawn are now quoted for cmd.exe, and paths with cmd.exe metacharacters (`%`, `"`, `&`, ...) are refused.
 
+### Changed
+- **The `codex-bridge` skill tells Claude when to call Codex on its own.** Claude now asks Codex for an independent review before it calls a non-trivial change done (roughly 50+ changed lines, or auth, security, payments, crypto, concurrency or migrations), and consults Codex when a bug survives two fix attempts (was three). It announces every call. Delegation triggers on explicit requests only and needs an allowed file list and a verification command; a bare "implement X" no longer delegates. To opt out of autonomous calls, set `disable-model-invocation: true` in the installed skill.
+
 ## [0.9.0] - 2026-10-18
 
 ### Changed
