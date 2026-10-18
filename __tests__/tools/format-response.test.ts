@@ -6,6 +6,7 @@ import {
   formatActivity,
   formatError,
   formatRichResponse,
+  formatStructuredOutput,
   saveFullOutput,
 } from "../../src/tools/format-response.js";
 import { BridgeError } from "../../src/errors/errors.js";
@@ -109,5 +110,37 @@ describe("add-dir header line", () => {
 
   it("omits the line without addDirs", () => {
     expect(formatRichResponse(result(), { mode: "full-auto", addDirs: [] }, "/repo")).not.toContain("add-dir");
+  });
+});
+
+describe("structured output (outputSchema)", () => {
+  const schema = { type: "object" };
+
+  it("shows the final message as a pretty JSON block with a status line", () => {
+    const final = '{"findings":[{"severity":"high","file":"a.ts","line":3}]}';
+    const text = formatRichResponse(result({ content: final, finalMessage: final }), { mode: "exec", outputSchema: schema }, "/repo");
+
+    expect(text).toContain("  structured output: JSON constrained by outputSchema (final message, below)");
+    expect(text).toContain('```json\n{\n  "findings": [');
+    expect(text.trimEnd().endsWith("```")).toBe(true);
+  });
+
+  it("keeps earlier prose messages above the JSON block", () => {
+    const final = '{"ok":true}';
+    const { body } = formatStructuredOutput(result({ content: `Checked the diff.\n\n${final}`, finalMessage: final }));
+    expect(body).toBe('Checked the diff.\n\n```json\n{\n  "ok": true\n}\n```');
+  });
+
+  it("falls back to the raw text and says so when the final message is not JSON", () => {
+    const out = formatStructuredOutput(result({ content: "not json", finalMessage: "not json" }));
+    expect(out.status).toContain("not valid JSON");
+    expect(out.body).toBe("not json");
+    expect(formatStructuredOutput(result({ content: "plain" })).body).toBe("plain");
+  });
+
+  it("leaves responses without outputSchema unchanged", () => {
+    const text = formatRichResponse(result({ content: '{"a":1}', finalMessage: '{"a":1}' }), { mode: "exec" }, "/repo");
+    expect(text).not.toContain("structured output");
+    expect(text.endsWith('{"a":1}')).toBe(true);
   });
 });

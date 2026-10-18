@@ -16,6 +16,8 @@ export interface CallMeta {
   readonly reasoningEffort?: string;
   /** Extra writable roots passed with `--add-dir`, already resolved. */
   readonly addDirs?: readonly string[];
+  /** Set when the call passed `--output-schema`; its final message is then JSON. */
+  readonly outputSchema?: Readonly<Record<string, unknown>>;
 }
 
 export interface FormatOptions {
@@ -73,10 +75,45 @@ export function formatActivity(activity: readonly ActivityEntry[], max: number =
   return hidden > 0 ? [`  … ${hidden} earlier actions omitted (see live log)`, ...lines] : lines;
 }
 
+/**
+ * The response body for an `outputSchema` call. Codex constrains only the
+ * final agent message, so that message is parsed and shown as a fenced JSON
+ * block after any earlier prose. When it is not valid JSON (for example the
+ * run produced no agent message), the body is the raw text and the status
+ * line says so.
+ */
+export function formatStructuredOutput(result: CodexResult): { status: string; body: string } {
+  const final = result.finalMessage;
+  const parsed = final === undefined ? null : parseJson(final);
+  if (final === undefined || parsed === null) {
+    return {
+      status: "outputSchema was set, but Codex's final message is not valid JSON; shown as-is",
+      body: result.content,
+    };
+  }
+  const earlier = result.content.endsWith(final) ? result.content.slice(0, -final.length).trim() : "";
+  const block = "```json\n" + JSON.stringify(parsed.value, null, 2) + "\n```";
+  return {
+    status: "JSON constrained by outputSchema (final message, below)",
+    body: earlier ? `${earlier}\n\n${block}` : block,
+  };
+}
+
+/** The parsed value wrapped in an object (so JSON `null` still counts), or null when `text` is not JSON. */
+function parseJson(text: string): { value: unknown } | null {
+  try {
+    return { value: JSON.parse(text) };
+  } catch {
+    return null;
+  }
+}
+
 export function formatRichResponse(result: CodexResult, meta: CallMeta, cwd: string, options: FormatOptions = {}): string {
   const lines: string[] = [formatMetaLine(result, meta, cwd)];
+  const structured = meta.outputSchema ? formatStructuredOutput(result) : null;
 
   for (const note of options.notes ?? []) lines.push(`  note: ${note}`);
+  if (structured) lines.push(`  structured output: ${structured.status}`);
   if (result.sessionId) {
     lines.push(`  session: ${result.sessionId} (pass as sessionId to continue this conversation)`);
   }
@@ -85,7 +122,8 @@ export function formatRichResponse(result: CodexResult, meta: CallMeta, cwd: str
   lines.push(...formatActivity(result.activity));
 
   lines.push("");
-  lines.push(truncateResponse(result.content, MAX_RESPONSE_CHARS, options.fullOutputPath ?? undefined));
+  const body = structured?.body ?? result.content;
+  lines.push(truncateResponse(body, MAX_RESPONSE_CHARS, options.fullOutputPath ?? undefined));
   return lines.join("\n");
 }
 

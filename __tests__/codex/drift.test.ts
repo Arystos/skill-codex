@@ -14,6 +14,7 @@ const FULL_HELP = `Options:
       --skip-git-repo-check
       --ephemeral
       --add-dir <DIR>
+      --output-schema <FILE>
       --json
       --uncommitted
       --base <BRANCH>

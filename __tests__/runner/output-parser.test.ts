@@ -71,6 +71,15 @@ describe("parseCodexOutput", () => {
     expect(parseCodexOutput(raw).content).toBe("Alpha\n\nBeta");
   });
 
+  it("keeps the last agent message alone as finalMessage (the one --output-schema constrains)", () => {
+    const raw = jsonl(agentMessage("Looking at the diff.", "item_1"), agentMessage('{"findings":[]}', "item_2"));
+    expect(parseCodexOutput(raw).finalMessage).toBe('{"findings":[]}');
+  });
+
+  it("has no finalMessage when the output had no agent message", () => {
+    expect(parseCodexOutput("plain text only").finalMessage).toBeUndefined();
+  });
+
   it("ignores agent_message text on item.started/item.updated partials", () => {
     const raw = jsonl(
       { type: "item.started", item: { id: "item_1", type: "agent_message", text: "partial" } },

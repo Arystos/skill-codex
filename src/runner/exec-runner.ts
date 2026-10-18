@@ -48,6 +48,11 @@ export interface ExecParams {
    */
   readonly addDirs?: readonly string[];
   /**
+   * Absolute path of a JSON Schema file for `--output-schema`. Codex then
+   * constrains its final message to that schema. Not used with review.
+   */
+  readonly outputSchemaPath?: string;
+  /**
    * Optional live-progress sink. Called with a short status line each time
    * Codex emits a meaningful JSONL event, plus a periodic heartbeat during
    * quiet stretches. Used to drive MCP progress notifications so a long run
@@ -167,6 +172,11 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
 
     if (params.reasoningEffort) {
       args.push("-c", `model_reasoning_effort=${params.reasoningEffort}`);
+    }
+
+    // `exec` and `exec resume` both accept --output-schema (once).
+    if (params.outputSchemaPath) {
+      args.push("--output-schema", toPathArg(params.outputSchemaPath));
     }
 
     // Windows sandbox backend (see sandbox-args.ts). Empty on non-Windows.

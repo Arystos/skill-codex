@@ -94,6 +94,7 @@ are optional; omit them and Codex uses its configured defaults.
 | `reviewBase` | string | With `review`: diff against this base branch |
 | `reviewCommit` | string | With `review`: review the changes in this commit SHA |
 | `addDirs` | string[] | Extra writable roots besides `cwd` (`--add-dir`), at most 16. See [Extra writable roots](#extra-writable-roots-adddirs) |
+| `outputSchema` | object | Inline JSON Schema for Codex's final message (`--output-schema`). See [Structured output](#structured-output-outputschema). Not supported with `review` |
 | `cwd` | string | Working directory (defaults to server cwd) |
 | `timeoutMs` | number | Override the default timeout |
 | `requireGit` | boolean | Fail if not inside a git repository |
@@ -122,6 +123,50 @@ skill-codex validates each entry before it starts Codex:
 
 Duplicate entries are dropped. Under `danger-full-access`, Codex can already
 write anywhere, so `addDirs` changes nothing there.
+### Structured output (`outputSchema`)
+
+`outputSchema` takes a JSON Schema object inline. skill-codex writes it to a
+private temp directory, passes the file with `codex exec --output-schema`, and
+deletes it when the call ends (also after a failure or a retry). Codex
+constrains only its **final** message to the schema; the response shows that
+message as a fenced JSON block, after any earlier prose, with the header line
+`structured output: JSON constrained by outputSchema`. If the final message is
+not valid JSON, the header says so and the raw text is shown.
+
+Codex sends the schema in OpenAI's strict mode. A schema that breaks the
+strict rules fails the call with `INVALID_REQUEST`, for example:
+`'additionalProperties' is required to be supplied and to be false`. The root
+must be an object; every object needs `"additionalProperties": false` and
+must list all its properties in `required`. The schema is capped at 64,000
+characters of JSON.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "severity": { "type": "string", "enum": ["low", "medium", "high"] },
+          "file": { "type": "string" },
+          "line": { "type": "integer" },
+          "fix": { "type": "string" }
+        },
+        "required": ["severity", "file", "line", "fix"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["findings"],
+  "additionalProperties": false
+}
+```
+
+`outputSchema` works for new runs and for resumed sessions (`sessionId`).
+`codex exec review` has its own output format, so `review` plus
+`outputSchema` is rejected with `INVALID_OPTIONS`.
 
 
 ## Model routing recipes
