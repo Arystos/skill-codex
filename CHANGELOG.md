@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Security
+- **PR safety checks** on every pull request: dependency review (fails on new dependencies with moderate or worse vulnerabilities) and a hidden-Unicode scan of changed files (bidi controls, invisible tag characters, zero-width spaces, NUL bytes in text files). The workflow runs from the base branch (`pull_request_target`) and reads the PR's files as git objects, so a PR can neither weaken the checks nor run code in them; symlinks and submodules are skipped.
+- **Dependabot** weekly updates for npm dependencies and the SHA-pinned GitHub Actions.
+- **Pull request template** and a documented review rule for outside contributions (`CLAUDE.md`, `SECURITY.md`).
+- **npm trusted publishing (OIDC) with provenance** replaces the long-lived `NPM_TOKEN`.
+
 ## [0.9.0] - 2026-10-18
 
 ### Changed
