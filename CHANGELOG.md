@@ -4,12 +4,6 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Security
-- **PR safety checks** on every pull request: dependency review (fails on new dependencies with moderate or worse vulnerabilities) and a hidden-Unicode scan of changed files (bidi controls, invisible tag characters, zero-width spaces, NUL bytes in text files). The workflow runs from the base branch (`pull_request_target`) and reads the PR's files as git objects, so a PR can neither weaken the checks nor run code in them; symlinks and submodules are skipped.
-- **Dependabot** weekly updates for npm dependencies and the SHA-pinned GitHub Actions.
-- **Pull request template** and a documented review rule for outside contributions (`CLAUDE.md`, `SECURITY.md`).
-- **npm trusted publishing (OIDC) with provenance** replaces the long-lived `NPM_TOKEN`.
-
 ## [0.9.0] - 2026-10-18
 
 ### Changed
@@ -53,6 +47,11 @@ All notable changes to this project will be documented in this file.
 - `skill-codex --version` printed `0.0.0` from the built bin (it looked for `package.json` inside `dist/`).
 
 ### Security
+- **PR safety checks** on every pull request: dependency review (fails on new dependencies with moderate or worse vulnerabilities) and a hidden-Unicode scan of changed files (bidi controls, invisible tag characters, zero-width spaces, NUL bytes in text files). The workflow runs from the base branch (`pull_request_target`) and reads the PR's files as git objects, so a PR can neither weaken the checks nor run code in them; symlinks and submodules are skipped.
+- **Dependabot** weekly updates for npm dependencies and the SHA-pinned GitHub Actions.
+- **Pull request template** and a documented review rule for outside contributions (`CLAUDE.md`, `SECURITY.md`).
+- **npm trusted publishing (OIDC) with provenance, staged.** The long-lived `NPM_TOKEN` is gone; the publish workflow can only stage a release, which a maintainer approves on npmjs.com with 2FA.
+- **Release job without the npm dependency cache**, so a poisoned cache entry cannot reach the published package. GitHub Actions updated to `actions/checkout` v7.0.1 and `actions/setup-node` v7.1.0.
 - **Dependency security updates.** `@modelcontextprotocol/sdk` ^1.31.0 (fixes an OAuth client credential leak) with its patched transitive dependencies (`proxy-addr`, `hono`, `ip-address`, `fast-uri`, `source-map-js`, `brace-expansion`), and `vitest`/`@vitest/coverage-v8` ^4.1.11 (drops the vulnerable `tinypool`). `npm audit`: 17 findings (3 critical, 6 high) → 1 low (dev-only esbuild via tsup).
 - Raised dependency floors (`@modelcontextprotocol/sdk` ^1.29.0, `vitest` ^3.2.7, `tsup` ^8.5.1) so a fresh install cannot resolve a vulnerable version, and added a SkillSpector baseline that only suppresses generated files and the deliberately vulnerable eval corpus.
 

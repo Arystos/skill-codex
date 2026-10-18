@@ -12,6 +12,8 @@ jobs:
       contents: read
       # npm trusted publishing: npm verifies this workflow via OIDC, so no
       # long-lived NPM_TOKEN exists to leak or expire. Also signs provenance.
+      # The trusted publisher may only *stage* releases: a maintainer approves
+      # each one on npmjs.com with 2FA before it goes live.
       id-token: write
 
     steps:
@@ -24,10 +26,13 @@ jobs:
           # No dependency cache in the release job: a poisoned cache entry
           # could end up in the published package (setup-node's guidance).
 
-      # Trusted publishing needs npm >= 11.5.1; Node 22 ships npm 10.
-      - run: npm install -g npm@11.6.2
+      # `npm stage` needs npm >= 11.21.0 (trusted publishing alone needs
+      # 11.5.1); Node 22 ships npm 10.
+      - run: npm install -g npm@11.21.0
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      - run: npm publish --provenance
+      # Uploads the release as staged. Approve it on npmjs.com (or with
+      # `npm stage approve <id>`) to publish it.
+      - run: npm stage publish . --provenance
