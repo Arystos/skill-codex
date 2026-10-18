@@ -33,7 +33,8 @@ skill-codex is a TypeScript project with no runtime framework -- just the MCP SD
 - `hooks/` -- PostToolUse hook scripts (bash + PowerShell)
 - `setup/` -- `npx skill-codex setup` installer
 - `bin/` -- CLI entry point
-- `__tests__/` -- vitest test suite
+- `__tests__/` -- vitest test suite (mocked Codex, runs in CI)
+- `e2e/` -- real-Codex tests: `npm run test:e2e` builds, starts `dist/index.js` as an MCP server and calls `codex_exec` with your own `codex login`. Not run in CI, because CI has no safe way to hold Codex credentials
 
 **Key files to understand first:**
 - `src/runner/exec-runner.ts` -- spawns `codex exec` (the core)

@@ -33,7 +33,7 @@ are great places to start contributing.
 ## 🎯 v1.0 — Stability
 
 - Freeze the `codex_exec` tool API surface
-- Expand tests, including a real-Codex end-to-end smoke test (gated behind a CI secret)
+- Expand tests. A local real-Codex end-to-end suite exists (`npm run test:e2e`); CI cannot hold Codex credentials safely, so it stays local
 - A `codex-cli-drift` guard in CI (diff `codex exec --help`) so upstream CLI changes are caught early
 - Comprehensive docs
 
