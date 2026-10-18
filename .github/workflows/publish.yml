@@ -21,7 +21,8 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-          cache: npm
+          # No dependency cache in the release job: a poisoned cache entry
+          # could end up in the published package (setup-node's guidance).
 
       # Trusted publishing needs npm >= 11.5.1; Node 22 ships npm 10.
       - run: npm install -g npm@11.6.2
