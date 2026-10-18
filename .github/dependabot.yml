@@ -1,6 +1,8 @@
 version: 2
 updates:
   # npm dependencies: weekly, minor and patch updates grouped into one PR.
+  # Major versions are evaluated by hand (they need migrations); security
+  # fixes still arrive through Dependabot security updates, majors included.
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -8,6 +10,9 @@ updates:
     groups:
       npm-minor-patch:
         update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
 
   # GitHub Actions: keeps the SHA-pinned actions up to date.
