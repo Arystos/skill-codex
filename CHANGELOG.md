@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-19
+
 ### Added
 - **Real-Codex end-to-end tests** (#23). `npm run test:e2e` builds, starts `dist/index.js` as an MCP server and calls `codex_exec` over stdio with the developer's own `codex login`: a read-only prompt with its session id, a resume, `outputSchema`, `addDirs` under `workspace-write`, a native review of an uncommitted change, and the rejected-model fallback. It is not part of `npm test` or CI: fork PRs get no secrets, and a stored ChatGPT login token would be exposed to every dependency installed in CI.
 - **`addDirs` on `codex_exec`** (#21). Extra writable roots besides `cwd`, passed as one `codex exec --add-dir` per entry, for monorepo tasks that span packages. Off by default. Entries resolve against `cwd`, must exist, and must use shell-safe characters (`INVALID_ADD_DIR` otherwise). `addDirs` needs a writable sandbox, because Codex silently ignores `--add-dir` under `read-only`. It is rejected with `review` and `sessionId`, which have no `--add-dir`. The response header lists the added roots. On Windows, path arguments to the codex spawn are now quoted for cmd.exe.

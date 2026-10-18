@@ -44,21 +44,20 @@ skill-codex is a TypeScript project with no runtime framework -- just the MCP SD
 
 ## Publishing to npm
 
-For maintainers:
+For maintainers. Releases go out from CI with npm trusted publishing (OIDC), so no npm token exists. The workflow only stages a release; a maintainer approves it on npmjs.com with 2FA.
 
-```shell
-# 1. Ensure clean build and tests pass
-npm run build && npm test
+1. Run `npm run test:e2e` against your own `codex login`. CI cannot run it.
+2. Open a release PR: bump `version` in `package.json`, `package-lock.json`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, `.codex-plugin/plugin.json` and `skills/codex-bridge/SKILL.md`, and move the `[Unreleased]` changelog entries under `[X.Y.Z] - YYYY-MM-DD`.
+3. After the merge, tag master and push the tag:
 
-# 2. Bump version (patch/minor/major)
-npm version patch
+   ```shell
+   git checkout master && git pull
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
 
-# 3. Publish
-npm publish
-
-# 4. Push tags
-git push --follow-tags
-```
+4. The tag starts `.github/workflows/publish.yml`. It runs the typecheck, the tests and the build, then `npm stage publish --provenance`.
+5. npm validates the staged release (about 10 minutes). Then approve it on npmjs.com, or with `npm stage approve <id>`.
 
 ## Guidelines
 
