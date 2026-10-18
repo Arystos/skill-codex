@@ -46,6 +46,7 @@ All notable changes to this project will be documented in this file.
 - `skill-codex --version` printed `0.0.0` from the built bin (it looked for `package.json` inside `dist/`).
 
 ### Security
+- **Dependency security updates.** `@modelcontextprotocol/sdk` ^1.31.0 (fixes an OAuth client credential leak) with its patched transitive dependencies (`proxy-addr`, `hono`, `ip-address`, `fast-uri`, `source-map-js`, `brace-expansion`), and `vitest`/`@vitest/coverage-v8` ^4.1.11 (drops the vulnerable `tinypool`). `npm audit`: 17 findings (3 critical, 6 high) → 1 low (dev-only esbuild via tsup).
 - Raised dependency floors (`@modelcontextprotocol/sdk` ^1.29.0, `vitest` ^3.2.7, `tsup` ^8.5.1) so a fresh install cannot resolve a vulnerable version, and added a SkillSpector baseline that only suppresses generated files and the deliberately vulnerable eval corpus.
 
 ## [0.8.1] - 2026-06-20
