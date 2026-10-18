@@ -3,6 +3,7 @@ import {
   parseCodexOutput,
   extractTurnFailure,
   isFinalAgentMessage,
+  NO_FINAL_MESSAGE,
 } from "../../src/runner/output-parser.js";
 import { EmptyOutputError } from "../../src/errors/errors.js";
 
@@ -138,6 +139,39 @@ describe("parseCodexOutput", () => {
 
   it("throws EmptyOutputError when only preamble remains", () => {
     expect(() => parseCodexOutput("OpenAI Codex v0.163.0\n--------")).toThrow(EmptyOutputError);
+  });
+
+  describe("a finished run without a final message (#59)", () => {
+    const fileChange = {
+      type: "item.completed",
+      item: { id: "item_1", type: "file_change", status: "completed", changes: [{ path: "hello.txt", kind: "add" }] },
+    };
+
+    it("returns a result instead of a retryable EmptyOutputError when Codex wrote files", () => {
+      const result = parseCodexOutput(jsonl(threadStarted, turnStarted, fileChange, agentMessage(""), turnCompleted));
+      expect(result.content).toBe(NO_FINAL_MESSAGE);
+      expect(result.activity).toEqual([{ type: "write", path: "hello.txt", icon: "✎", status: "add" }]);
+      expect(result.finalMessage).toBeUndefined();
+      expect(result.sessionId).toBe(threadStarted.thread_id);
+    });
+
+    it("treats a completed turn with no message and no actions as finished, not empty", () => {
+      expect(parseCodexOutput(jsonl(threadStarted, turnStarted, turnCompleted)).content).toBe(NO_FINAL_MESSAGE);
+    });
+
+    it("counts actions even when the turn.completed event is missing", () => {
+      expect(parseCodexOutput(jsonl(threadStarted, fileChange)).content).toBe(NO_FINAL_MESSAGE);
+    });
+
+    it("drops empty agent messages and keeps the real ones", () => {
+      const result = parseCodexOutput(jsonl(agentMessage("Done.", "item_1"), agentMessage("  ", "item_2"), turnCompleted));
+      expect(result.content).toBe("Done.");
+      expect(result.finalMessage).toBe("Done.");
+    });
+
+    it("still throws EmptyOutputError when nothing ran", () => {
+      expect(() => parseCodexOutput(jsonl(agentMessage("")))).toThrow(EmptyOutputError);
+    });
   });
 
   it("preserves raw output", () => {
