@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- **The `codex-bridge` skill tells Claude when to call Codex on its own.** Claude now asks Codex for an independent review before it calls a non-trivial change done (roughly 50+ changed lines, or auth, security, payments, crypto, concurrency or migrations), and consults Codex when a bug survives two fix attempts (was three). It announces every call. Delegation triggers on explicit requests only and needs an allowed file list and a verification command; a bare "implement X" no longer delegates. To opt out of autonomous calls, set `disable-model-invocation: true` in the installed skill.
+
 ## [0.9.0] - 2026-10-18
 
 ### Changed
