@@ -93,9 +93,35 @@ are optional; omit them and Codex uses its configured defaults.
 | `review` | boolean | Run Codex's native diff-scoped `codex exec review` |
 | `reviewBase` | string | With `review`: diff against this base branch |
 | `reviewCommit` | string | With `review`: review the changes in this commit SHA |
+| `addDirs` | string[] | Extra writable roots besides `cwd` (`--add-dir`), at most 16. See [Extra writable roots](#extra-writable-roots-adddirs) |
 | `cwd` | string | Working directory (defaults to server cwd) |
 | `timeoutMs` | number | Override the default timeout |
 | `requireGit` | boolean | Fail if not inside a git repository |
+
+### Extra writable roots (`addDirs`)
+
+`addDirs` passes one `codex exec --add-dir <DIR>` per entry. Codex can then
+write in those directories as well as in `cwd`. Use it when one task spans
+packages outside `cwd`, for example `cwd: "packages/app"` with
+`addDirs: ["../shared"]`.
+
+**Safety.** Every entry widens what Codex can modify on your machine. The
+default is no extra roots. Pass only the directories the task needs, and
+never a home directory or a drive root. The response header lists the roots
+that were added, as `add-dir (writable): ...`.
+
+skill-codex validates each entry before it starts Codex:
+
+| Check | Result when it fails |
+|-------|----------------------|
+| A relative entry resolves against `cwd` | (always applied) |
+| The directory exists | `INVALID_ADD_DIR` |
+| The path has only letters, digits, space and `. _ - : \ / ( ) + @ , ~ ' # [ ] { } =` | `INVALID_ADD_DIR` (on Windows, codex starts through cmd.exe, so characters such as `%`, `&`, `"` are refused) |
+| The sandbox is writable: `mode: "full-auto"`, or `sandbox: "workspace-write"` or `"danger-full-access"` | `INVALID_OPTIONS` (under `read-only`, Codex silently ignores `--add-dir`) |
+| Not combined with `review` or `sessionId` | `INVALID_OPTIONS` (`codex exec review` and `codex exec resume` have no `--add-dir`; a resumed session keeps its original writable roots) |
+
+Duplicate entries are dropped. Under `danger-full-access`, Codex can already
+write anywhere, so `addDirs` changes nothing there.
 
 
 ## Model routing recipes

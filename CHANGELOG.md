@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **`addDirs` on `codex_exec`** (#21). Extra writable roots besides `cwd`, passed as one `codex exec --add-dir` per entry, for monorepo tasks that span packages. Off by default. Entries resolve against `cwd`, must exist, and must use shell-safe characters (`INVALID_ADD_DIR` otherwise). `addDirs` needs a writable sandbox, because Codex silently ignores `--add-dir` under `read-only`. It is rejected with `review` and `sessionId`, which have no `--add-dir`. The response header lists the added roots. On Windows, path arguments to the codex spawn are now quoted for cmd.exe.
+
 ## [0.9.0] - 2026-10-18
 
 ### Changed

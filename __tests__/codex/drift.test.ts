@@ -13,6 +13,7 @@ const FULL_HELP = `Options:
   -s, --sandbox <SANDBOX_MODE>
       --skip-git-repo-check
       --ephemeral
+      --add-dir <DIR>
       --json
       --uncommitted
       --base <BRANCH>

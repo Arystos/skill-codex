@@ -162,6 +162,7 @@ These `codex_exec` parameters are all optional — omit them and Codex uses its 
 * **`sandbox`** — explicit policy (`read-only`, `workspace-write`, `danger-full-access`), overriding `mode`. Use `danger-full-access` only when you understand the risk.
 * **`sessionId`** — resume a previous Codex session for multi-round memory. Each response includes the session's thread id; pass it back so Codex retains context — e.g. a follow-up review that checks whether *previously flagged* issues were fixed.
 * **`review`** — run Codex's native diff-scoped reviewer (`codex exec review`), optionally targeting a branch (`reviewBase`) or commit (`reviewCommit`).
+* **`addDirs`** — extra directories Codex may **write** to besides `cwd` (`codex exec --add-dir`), for monorepo tasks that span packages. Off by default. Each entry is absolute or relative to `cwd` and must exist. It needs a writable sandbox (`mode: "full-auto"` or `sandbox: "workspace-write"`), and it widens what Codex can modify: pass only the directories the task needs. See [docs/CONFIGURATION.md](docs/CONFIGURATION.md#extra-writable-roots-adddirs).
 
 Model routing recipes: [docs/CONFIGURATION.md](docs/CONFIGURATION.md#model-routing-recipes).
 

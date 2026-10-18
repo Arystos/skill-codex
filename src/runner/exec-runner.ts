@@ -9,6 +9,7 @@ import {
 import { getNextDepth } from "../guards/check-recursion.js";
 import { getCachedBinaryPath } from "../guards/check-binary.js";
 import { getSandboxConfigArgs, getSandboxGitEnv } from "./sandbox-args.js";
+import { toPathArg } from "./path-arg.js";
 import { setupTimeout } from "./timeout.js";
 import {
   parseCodexOutput,
@@ -40,6 +41,12 @@ export interface ExecParams {
   readonly reviewBase?: string;
   readonly reviewCommit?: string;
   readonly timeoutMs?: number;
+  /**
+   * Validated absolute directories for `--add-dir` (extra writable roots).
+   * Passed only on a fresh exec run: `exec resume` and `exec review` have no
+   * such flag.
+   */
+  readonly addDirs?: readonly string[];
   /**
    * Optional live-progress sink. Called with a short status line each time
    * Codex emits a meaningful JSONL event, plus a periodic heartbeat during
@@ -147,6 +154,10 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
       const sandbox =
         params.sandbox ?? (params.mode === "full-auto" ? "workspace-write" : "read-only");
       args = ["exec", "--json", "--skip-git-repo-check", "--sandbox", sandbox];
+      // --add-dir is repeatable: one flag per directory.
+      for (const dir of params.addDirs ?? []) {
+        args.push("--add-dir", toPathArg(dir));
+      }
       sendStdinPrompt = true;
     }
 

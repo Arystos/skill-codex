@@ -21,6 +21,9 @@ export const MAX_RESPONSE_CHARS = 36_000;
 /** Most recent activity lines (commands, file writes) shown in a response. */
 export const MAX_ACTIVITY_LINES = 40;
 
+/** Most extra writable roots one codex_exec call may add with `addDirs`. */
+export const MAX_ADD_DIRS = 16;
+
 export const LOCK_STALE_MS = 900_000; // 15 minutes
 export const LOCK_FILENAME = ".skill-codex.lock";
 
