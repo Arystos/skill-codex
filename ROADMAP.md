@@ -17,6 +17,7 @@ are great places to start contributing.
 - **Model & reasoning-effort** selection per call; **native `codex exec review`** (diff-scoped)
 - **Session memory** via `codex exec resume`
 - Structured **APPROVED / WARNING / BLOCKED** review verdict + bounded fix→re-review loop
+- **Tool-verified audit pass** — Claude re-checks each Codex finding against the code and classifies it keep / rewrite / drop(reason) / new (with required evidence) before the verdict, filtering false positives and surfacing issues Codex missed
 - **Live progress** streaming; timeout / anti-recursion / lock-file guards
 - **Windows-native** (works around Codex's elevated-sandbox spawn bug); CI matrix on Windows/macOS/Linux × Node 18/20/22
 - Installable as a **Claude Code plugin** and an **OpenAI Codex plugin**

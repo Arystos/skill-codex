@@ -1,0 +1,26 @@
+diff --git a/src/cache.ts b/src/cache.ts
+index 3c4d5e6..7f8a9b0 100644
+--- a/src/cache.ts
++++ b/src/cache.ts
+@@ -6,10 +6,15 @@ export class TokenCache {
+   private token: string | null = null;
+   private expiry = 0;
+
+-  async getToken(): Promise<string> {
+-    if (this.token && Date.now() < this.expiry) return this.token;
+-    const inflight = this.refresh();
+-    return inflight;
+-  }
++  private refreshing: Promise<string> | null = null;
++
++  async getToken(): Promise<string> {
++    if (this.token && Date.now() < this.expiry) return this.token;
++    // Concurrent callers each kick off their own refresh: the guard checks
++    // `this.token`, which is still null until the FIRST refresh resolves, so
++    // N simultaneous callers fire N token refreshes (thundering herd).
++    const fresh = await this.refresh();
++    return fresh;
++  }
+
+   private async refresh(): Promise<string> {
+     const res = await fetch("/auth/token");

@@ -55,21 +55,12 @@ export function formatLogLines(evt: any): string[] {
     return [`    ✘ exit ${String(item.exit_code)}`];
   }
 
-  if (item?.type === "file_read") return [`  read   ${String(item.path ?? "file")}`];
-
-  if (item?.type === "file_write" || item?.type === "file_edit") {
-    return [`  write  ${String(item.path ?? "file")}`];
-  }
-
   if (item?.type === "file_change") {
-    const changes = Array.isArray(item.changes) ? item.changes : null;
-    if (changes && changes.length > 0) {
-      return changes.map(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (change: any) => `  write  ${String(change?.path ?? "file")} (${String(change?.kind ?? "write")})`,
-      );
-    }
-    return [`  write  ${String(item.path ?? "file")}`];
+    const changes: unknown[] = Array.isArray(item.changes) ? item.changes : [];
+    return changes.map(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (change: any) => `  write  ${String(change?.path ?? "file")} (${String(change?.kind ?? "write")})`,
+    );
   }
 
   if (

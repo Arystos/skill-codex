@@ -1,0 +1,18 @@
+diff --git a/src/users-repo.ts b/src/users-repo.ts
+index 5e6f7a8..9b0c1d2 100644
+--- a/src/users-repo.ts
++++ b/src/users-repo.ts
+@@ -3,9 +3,12 @@ import { db } from "./db.js";
+ export async function searchUsers(term: string) {
+-  const rows = await db.query(
+-    "SELECT id, email FROM users WHERE name LIKE $1",
+-    [`%${term}%`],
+-  );
+-  return rows;
++  // `term` comes straight from the HTTP query string and is concatenated
++  // into SQL — a value like `'; DROP TABLE users; --` runs verbatim.
++  const rows = await db.query(
++    `SELECT id, email FROM users WHERE name LIKE '%${term}%'`,
++  );
++  return rows;
+ }

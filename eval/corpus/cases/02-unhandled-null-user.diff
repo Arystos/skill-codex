@@ -1,0 +1,17 @@
+diff --git a/src/profile.ts b/src/profile.ts
+index 2b3c4d5..6e7f8a9 100644
+--- a/src/profile.ts
++++ b/src/profile.ts
+@@ -4,8 +4,11 @@ interface User {
+   address?: { city: string; zip: string };
+ }
+
+-export function formatLocation(user: User): string {
+-  const city = user.address ? user.address.city : "Unknown";
+-  return city;
++export function formatLocation(user: User): string {
++  // address is optional, but we read .city without checking it exists.
++  // Users without an address throw "Cannot read properties of undefined".
++  const city = user.address.city;
++  return city.toUpperCase();
+ }

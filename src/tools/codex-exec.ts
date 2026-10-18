@@ -36,7 +36,7 @@ export const inputSchema = z.object({
     .regex(/^[A-Za-z0-9._-]{1,64}$/)
     .optional()
     .describe(
-      "Codex model to use (e.g. gpt-5.5, gpt-5.4, gpt-5.4-mini). Omit to use Codex's configured default.",
+      "Codex model to use (e.g. gpt-6.1-sol, gpt-6-luna; availability depends on your ChatGPT plan, run `codex debug models` to list yours). Omit to use Codex's configured default.",
     ),
   reasoningEffort: z
     .enum(["minimal", "low", "medium", "high", "xhigh"])
@@ -97,7 +97,7 @@ export const TOOL_INPUT_JSON_SCHEMA = {
       type: "string",
       pattern: "^[A-Za-z0-9._-]{1,64}$",
       description:
-        "Codex model to use (e.g. gpt-5.5, gpt-5.4, gpt-5.4-mini). Omit to use Codex's configured default.",
+        "Codex model to use (e.g. gpt-6.1-sol, gpt-6-luna; availability depends on your ChatGPT plan, run `codex debug models` to list yours). Omit to use Codex's configured default.",
     },
     reasoningEffort: {
       type: "string",
@@ -193,8 +193,6 @@ function formatRichResponse(
     for (const a of result.activity) {
       if (a.type === "exec") {
         lines.push(`  ${a.icon} exec: ${a.command}  (${a.status})`);
-      } else if (a.type === "read") {
-        lines.push(`  \u25B6 read: ${a.path}`);
       } else if (a.type === "write") {
         lines.push(`  \u270E write: ${a.path}`);
       }

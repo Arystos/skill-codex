@@ -1,0 +1,11 @@
+# SkillSpector baseline for known non-product findings.
+# Intentionally narrow: only generated artifacts and the eval fixture corpus are suppressed.
+version: 1
+rules:
+  - path: "dist/**"
+    reason: "dist/ is tsup-compiled output generated from src/, so findings there duplicate the source of truth already visible in src/."
+  - path: "coverage/**"
+    reason: "coverage/ is the generated Istanbul/vitest HTML coverage report, is not executable product code, and duplicates source patterns from src/."
+  - path: "eval/corpus/**"
+    reason: "eval/corpus/ is the intentionally vulnerable fixture corpus documented in eval/README.md for benchmarking the cross-model reviewer, not code executed by skill-codex."
+fingerprints: []

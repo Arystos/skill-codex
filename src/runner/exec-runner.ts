@@ -10,7 +10,12 @@ import { getNextDepth } from "../guards/check-recursion.js";
 import { getCachedBinaryPath } from "../guards/check-binary.js";
 import { getSandboxConfigArgs } from "./sandbox-args.js";
 import { setupTimeout } from "./timeout.js";
-import { parseCodexOutput, type CodexResult } from "./output-parser.js";
+import {
+  parseCodexOutput,
+  extractTurnFailure,
+  type CodexResult,
+  type TurnFailure,
+} from "./output-parser.js";
 import { formatProgressMessage } from "./progress.js";
 import { createLiveLogger } from "../util/live-logger.js";
 import {
@@ -20,6 +25,7 @@ import {
   RateLimitError,
   ServerError,
   NetworkError,
+  InvalidRequestError,
 } from "../errors/errors.js";
 
 export interface ExecParams {
@@ -53,28 +59,54 @@ function getTimeout(override?: number): number {
   return DEFAULT_TIMEOUT_MS;
 }
 
-function classifyError(exitCode: number, stderr: string): BridgeError {
-  const lower = stderr.toLowerCase();
+const AUTH_PATTERNS = ["unauthorized", "401", "api key"];
+const RATE_LIMIT_PATTERNS = ["rate limit", "429", "too many requests"];
+const SERVER_PATTERNS = ["500", "502", "503", "504", "internal server error", "bad gateway", "service unavailable"];
+const NETWORK_PATTERNS = ["econnreset", "econnrefused", "etimedout", "network error", "fetch failed", "socket hang up"];
+const DETAIL_MAX = 200;
+const GENERIC_DETAIL_MAX = 300;
+
+/** Map an HTTP status from a JSON-encoded Codex API error; null if it gives no verdict. */
+function classifyStatus(status: number, message: string): BridgeError | null {
+  const detail = message.slice(0, DETAIL_MAX);
+  if (status === 401 || status === 403) return new AuthExpiredError(detail);
+  if (status === 429) return new RateLimitError(detail);
+  if (status >= 500) return new ServerError(detail);
+  if (status >= 400) return new InvalidRequestError(detail);
+  return null;
+}
+
+/**
+ * Keyword fallback. `codexMessage` is set only when the text came from a
+ * `turn.failed` event: it is Codex's own wording and safe to echo, whereas
+ * stderr may carry internals and is never added to auth/rate-limit messages.
+ */
+function classifyText(exitCode: number, text: string, codexMessage: string): BridgeError {
+  const lower = text.toLowerCase();
+  const matches = (patterns: readonly string[]): boolean => patterns.some((p) => lower.includes(p));
 
   // Check auth errors first but exclude generic "auth" in context
-  if (lower.includes("unauthorized") || lower.includes("401") || lower.includes("api key")) {
-    return new AuthExpiredError();
-  }
-  if (lower.includes("rate limit") || lower.includes("429") || lower.includes("too many requests")) {
-    return new RateLimitError();
-  }
-  if (["500", "502", "503", "504", "internal server error", "bad gateway", "service unavailable"].some((p) => lower.includes(p))) {
-    return new ServerError(stderr.slice(0, 200));
-  }
-  if (["econnreset", "econnrefused", "etimedout", "network error", "fetch failed", "socket hang up"].some((p) => lower.includes(p))) {
-    return new NetworkError(stderr.slice(0, 200));
-  }
+  if (matches(AUTH_PATTERNS)) return new AuthExpiredError(codexMessage.slice(0, DETAIL_MAX));
+  if (matches(RATE_LIMIT_PATTERNS)) return new RateLimitError(codexMessage.slice(0, DETAIL_MAX));
+  if (matches(SERVER_PATTERNS)) return new ServerError(text.slice(0, DETAIL_MAX));
+  if (matches(NETWORK_PATTERNS)) return new NetworkError(text.slice(0, DETAIL_MAX));
 
   return new BridgeError(
-    `Codex exited with code ${exitCode}: ${stderr.slice(0, 300)}`,
+    `Codex exited with code ${exitCode}: ${text.slice(0, GENERIC_DETAIL_MAX)}`,
     "EXEC_FAILED",
     false,
   );
+}
+
+/**
+ * Classify a non-zero exit. A `turn.failed` event on stdout is Codex's own
+ * account of the failure, so it wins over stderr (often empty or noisy for
+ * `--json` runs); stderr is the fallback when the turn never reported one.
+ */
+function classifyError(exitCode: number, stderr: string, failure: TurnFailure | null): BridgeError {
+  if (!failure) return classifyText(exitCode, stderr, "");
+  const byStatus = failure.status === undefined ? null : classifyStatus(failure.status, failure.message);
+  return byStatus ?? classifyText(exitCode, failure.message, failure.message);
 }
 
 export async function execCodex(params: ExecParams): Promise<CodexResult> {
@@ -255,7 +287,7 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
         return;
       }
 
-      reject(classifyError(exitCode, stderr));
+      reject(classifyError(exitCode, stderr, extractTurnFailure(stdout)));
     };
 
     child.on("close", onClose);

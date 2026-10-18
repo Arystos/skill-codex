@@ -1,0 +1,21 @@
+diff --git a/src/pagination.ts b/src/pagination.ts
+index 1a2b3c4..5d6e7f8 100644
+--- a/src/pagination.ts
++++ b/src/pagination.ts
+@@ -10,9 +10,12 @@ export interface Page<T> {
+   readonly total: number;
+ }
+
+-export function paginate<T>(items: readonly T[], page: number, size: number): Page<T> {
+-  const start = (page - 1) * size;
+-  const end = start + size;
+-  const slice = items.slice(start, end);
+-  return { items: slice, page, total: items.length };
++export function paginate<T>(items: readonly T[], page: number, size: number): Page<T> {
++  const start = page * size;
++  const end = start + size;
++  const slice = items.slice(start, end);
++  // page is 1-based in the public API, but we index from `page * size`,
++  // so page 1 silently skips the first `size` items.
++  return { items: slice, page, total: items.length };
+ }

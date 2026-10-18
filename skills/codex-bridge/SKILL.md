@@ -101,11 +101,13 @@ Use when the user wants a second-opinion review of a diff, branch, or commit.
    requireGit: true
    ```
 
-4. **Assign an overall verdict** (you are the final judge, not a relay): **BLOCKED** (≥1 CRITICAL/HIGH), **WARNING** (only MEDIUM/LOW), or **APPROVED** (none). State it explicitly, e.g. `Verdict: BLOCKED — 1 CRITICAL`.
+4. **Audit each finding against the actual code** before trusting it. For each finding Codex returned, open the cited file/line and classify it: **keep** (confirmed — quote the offending code as evidence), **rewrite** (real, but Codex got the severity/location/explanation wrong — restate with evidence), **drop** (not real — give a typed reason: `codebase-convention`, `pre-existing`, `cannot-occur`, `out-of-scope`, or `false-claim`), or **new** (a real issue Codex missed, found while auditing — add with evidence). `keep`/`rewrite`/`new` must cite concrete code; only they carry forward.
 
-5. **Present findings grouped by severity.** For each finding, add your own assessment: agree, disagree with reasoning, or add nuance. Note anything Codex missed that you think is important. End with a summary of actionable items.
+5. **Assign an overall verdict from the audited findings** (you are the final judge, not a relay): **BLOCKED** (≥1 surviving CRITICAL/HIGH), **WARNING** (only surviving MEDIUM/LOW), or **APPROVED** (nothing survived). State it explicitly, e.g. `Verdict: BLOCKED — 1 CRITICAL (2 of Codex's findings dropped)`.
 
-6. **If BLOCKED or WARNING, offer a bounded fix loop** (with the user's go-ahead): fix the issues you agree are real, re-run `codex_exec` on the updated diff to confirm the fixes and catch regressions, and repeat until APPROVED or **3 rounds max** — then stop and summarize what's left. The cap prevents runaway Codex quota use.
+6. **Present findings grouped by severity** — surviving findings with your code evidence and `keep`/`rewrite`/`new` label, plus a short **"Filtered"** list of the dropped findings with their reason (transparency, not silent suppression). End with a summary of actionable items.
+
+7. **If BLOCKED or WARNING, offer a bounded fix loop** (with the user's go-ahead): fix the surviving issues, re-run `codex_exec` on the updated diff to confirm the fixes and catch regressions (audit the new findings too), and repeat until APPROVED or **3 rounds max** — then stop and summarize what's left. The cap prevents runaway Codex quota use.
 
 ### Workflow 3: Consult for a second opinion (`consult`)
 
@@ -147,6 +149,8 @@ The skill-codex MCP server exposes exactly one tool: `codex_exec`.
 | `timeoutMs` | number | no | Override default 5min timeout |
 | `requireGit` | boolean | no | Refuse to run if cwd is not a git repo (recommended `true` for `full-auto`) |
 
+**Command flags:** the `/codex-review`, `/codex-do`, and `/codex-consult` commands accept optional `--effort <level>` (`minimal`|`low`|`medium`|`high`|`xhigh`) and `--model <name>` flags in their arguments. Parse and strip them, then pass through as `reasoningEffort` / `model`. Omit either flag to defer to Codex's configured default (`~/.codex/config.toml`) — never invent a value.
+
 **Modes:**
 - `exec` → read-only. Use for review and consult.
 - `full-auto` → can modify files. Use only for delegate, and always with `requireGit: true`.
@@ -170,8 +174,8 @@ The skill-codex MCP server exposes exactly one tool: `codex_exec`.
 **Actions:**
 1. Run `git status --short` (to catch new untracked files), then `git diff` → capture unstaged changes (fall back to `git diff --cached` if empty).
 2. Call `codex_exec` with `mode: "exec"` and the review prompt.
-3. Present: 1 CRITICAL (missing null check, `src/runner/runner.ts:47` — confirmed), 2 MEDIUM (disagree with one, agree with the other), 1 LOW (style nit, skip).
-4. Offer to fix the CRITICAL and the confirmed MEDIUM.
+3. **Audit** Codex's 4 findings against the code: `keep` 1 CRITICAL (missing null check, `src/runner/runner.ts:47` — quoted the unguarded deref as evidence); `rewrite` 1 MEDIUM → it's really HIGH and at line 52; `drop` 1 MEDIUM (`codebase-convention` — matches the repo's existing error pattern) and 1 LOW (`out-of-scope` — style nit); add 1 `new` MEDIUM Codex missed (the same null pattern repeats at `:71`).
+4. Present: `Verdict: BLOCKED — 1 CRITICAL, 1 HIGH, 1 MEDIUM (audited; 2 of Codex's findings filtered)`, with the "Filtered" list and its reasons. Offer to fix the surviving issues.
 
 ### Example 3: Consult — architecture question
 

@@ -14,7 +14,31 @@ All optional.
 | `SKILL_CODEX_MAX_RETRIES` | `3` | Retry count for transient errors |
 | `SKILL_CODEX_LOG` | `<os-temp>/skill-codex/<workspace>.log` | Absolute path override for the live, tail-able per-run log |
 | `SKILL_CODEX_DEBUG` | — | Enable debug logging to stderr |
-| `SKILL_CODEX_WINDOWS_SANDBOX` | `unelevated` | Windows only — Codex `windows.sandbox` mode (`unelevated`/`elevated`) |
+| `SKILL_CODEX_WINDOWS_SANDBOX` | `unelevated` | Windows only — Codex `windows.sandbox` mode: `unelevated`, `elevated` or `mxc`. Other values are ignored with a stderr warning. See [Windows sandbox mode](#windows-sandbox-mode) |
+
+### Windows sandbox mode
+
+On Windows, skill-codex passes `-c windows.sandbox=<mode>` on every Codex
+call. This overrides `[windows] sandbox` in `~/.codex/config.toml`. The
+default is `unelevated`. Results on codex-cli 0.163.0 (Windows 11, ChatGPT
+auth):
+
+| Mode | Shell spawns | `git status` in your repo | Write inside workspace | Write outside workspace |
+|------|--------------|---------------------------|------------------------|-------------------------|
+| `unelevated` (default) | ✅ | ✅ | ✅ | blocked |
+| `elevated` | ✅ | ❌ *detected dubious ownership* | ✅ | blocked |
+| `mxc` | ✅ | ❌ *this operation must be run in a work tree* | ✅ | blocked |
+
+- `elevated` runs commands as a separate local account (`CodexSandboxOffline`).
+  Git refuses repos owned by another user. To use `elevated`, add your repos
+  to git's `safe.directory`.
+- The older `windows sandbox failed: spawn setup refresh` error with
+  `elevated` ([openai/codex#24098](https://github.com/openai/codex/issues/24098),
+  [#24259](https://github.com/openai/codex/issues/24259)) is fixed in 0.163.
+  It was the original reason for the pin.
+- `workspace-write` also allows writes under `%TEMP%`, in every mode. That is
+  Codex's default writable-roots policy, not a sandbox escape.
+- If Codex resolves its `prefer_mxc` setting, it uses MXC whatever mode is set.
 
 ## Smart-filter thresholds (auto-review hook)
 
@@ -54,7 +78,7 @@ are optional; omit them and Codex uses its configured defaults.
 | `mode` | `exec` \| `full-auto` | `exec` = read-only (default), `full-auto` = can write files |
 | `sandbox` | `read-only` \| `workspace-write` \| `danger-full-access` | Explicit sandbox policy; overrides `mode` |
 | `sessionId` | string | Resume a prior Codex session (thread id from a previous response) |
-| `model` | string | Codex model, e.g. `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini` |
+| `model` | string | Codex model, e.g. `gpt-6.1-sol`, `gpt-6-luna`; availability depends on your ChatGPT plan and Codex version (`codex debug models` lists yours), and omitting it uses your configured default |
 | `reasoningEffort` | `minimal` \| `low` \| `medium` \| `high` \| `xhigh` | How hard Codex thinks |
 | `review` | boolean | Run Codex's native diff-scoped `codex exec review` |
 | `reviewBase` | string | With `review`: diff against this base branch |

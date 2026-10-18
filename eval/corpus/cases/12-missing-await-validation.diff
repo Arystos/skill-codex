@@ -1,0 +1,19 @@
+diff --git a/src/signup.ts b/src/signup.ts
+index c2d3e4f..6a7b8c9 100644
+--- a/src/signup.ts
++++ b/src/signup.ts
+@@ -4,11 +4,15 @@ import { isEmailTaken } from "./users.js";
+ export async function signup(email: string, password: string) {
+-  if (await isEmailTaken(email)) {
+-    throw new Error("Email already registered");
+-  }
+-  return createUser(email, password);
++  // The `await` was dropped: isEmailTaken returns a Promise, which is always
++  // truthy, so... wait — actually it's the opposite. The Promise object is
++  // truthy, but the negation below flips it, so the guard never triggers and
++  // duplicate accounts are created with the same email.
++  if (!isEmailTaken(email)) {
++    throw new Error("Email already registered");
++  }
++  return createUser(email, password);
+ }

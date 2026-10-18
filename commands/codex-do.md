@@ -1,3 +1,8 @@
+---
+description: Delegate a well-scoped implementation task to Codex
+argument-hint: "[--effort <level>] [--model <name>] <task>"
+---
+
 # Delegate Task to Codex
 
 Delegate a well-scoped implementation task to Codex.
@@ -5,6 +10,12 @@ Delegate a well-scoped implementation task to Codex.
 ## Instructions
 
 You are delegating an implementation task to Codex. Follow these steps:
+
+0. **Extract optional flags from `$ARGUMENTS` first**, then treat the remaining text as the task:
+   - `--effort <level>` — Codex reasoning effort. Valid: `minimal`, `low`, `medium`, `high`, `xhigh`. If an invalid level is given, list the valid ones and ask — do not guess.
+   - `--model <name>` — Codex model (e.g. `gpt-6.1-sol`, `gpt-6-luna`). Passed through as-is. Availability depends on your ChatGPT plan and Codex version (`codex debug models` lists yours); omit to use the configured default.
+   - Strip any flags you find; what's left is the task parsed in step 1.
+   - **Omitted → default:** if a flag is absent, do NOT pass that parameter to `codex_exec`. Codex falls back to its configured default (`~/.codex/config.toml`). Never invent a value.
 
 1. **Parse the task** from `$ARGUMENTS`. If the argument is vague or missing, ask the user to be more specific before proceeding.
 
@@ -23,6 +34,8 @@ You are delegating an implementation task to Codex. Follow these steps:
    - `prompt`: the prepared prompt
    - `mode`: "full-auto"
    - `requireGit`: true
+   - `reasoningEffort`: the parsed `--effort` level — **only if provided in step 0** (otherwise omit)
+   - `model`: the parsed `--model` name — **only if provided in step 0** (otherwise omit)
 
 5. **Review Codex's output critically**:
    - Run `git status --short` **first** to see ALL changes, including **newly-created files** (lines starting with `??`). Codex in full-auto mode often creates new files, and `git diff` alone is blind to untracked files.

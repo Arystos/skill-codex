@@ -32,6 +32,7 @@ npx skill-codex setup   # then restart Claude Code
 - [Usage](#usage)
 - [Configuration](#configuration)
 - [Troubleshooting](#troubleshooting)
+- [Security scanning](#security-scanning-skillspector)
 - [Development](#development)
 - [Contributing](#contributing)
 - [License](#license)
@@ -42,7 +43,7 @@ npx skill-codex setup   # then restart Claude Code
 
 Claude Code and Codex CLI have different strengths. Claude excels at reasoning, architecture, and complex refactors. Codex is fast, thorough, and great at focused execution and review. **skill-codex** lets them work together from a single terminal — no second window, no copy-paste, no context loss.
 
-* **`/codex-review`** — have Codex review your current changes as a second reviewer
+* **`/codex-review`** — Codex reviews your current changes; Claude then audits each finding against the code (keep / rewrite / drop / new, with evidence) before the verdict, so false positives are filtered and missed issues surfaced
 * **`/codex-do`** — delegate well-scoped implementation tasks to Codex
 * **`/codex-consult`** — get a second opinion on architecture or design decisions
 * **`codex-bridge` agent skill** — auto-triggers on implementation/review/consult requests, no command needed
@@ -59,15 +60,16 @@ Because a subagent is the **same model**. When Claude reviews Claude, you inheri
 
 | | skill-codex | Most Codex MCP bridges |
 |---|---|---|
-| Codex **subscription** auth (no `OPENAI_API_KEY`) | ✅ | ⚠️ often require an API key |
 | **Windows** verified in CI (not just "should work") | ✅ 9-way matrix (Windows/macOS/Linux × Node 18/20/22) | ❌ usually Linux-only CI |
+| **git works inside Codex's Windows sandbox** (no WSL needed) | ✅ pins `windows.sandbox=unelevated` (re-tested on codex-cli 0.163) | ⚠️ inherit your Codex backend; under `elevated`, git rejects your repo |
 | **Live progress** so long runs never look frozen | ✅ MCP progress + tail-able log | ⚠️ varies |
 | **Slash commands** (`/codex-review`, `/codex-do`, `/codex-consult`) | ✅ | ⚠️ some |
 | **Auto-review hook** (PostToolUse) | ✅ | ❌ |
 | **Agent skill** (auto-triggers, no command needed) | ✅ | ❌ |
 | **Guardrails**: retry, timeout, anti-recursion, lock files | ✅ | ⚠️ partial |
+| Codex **subscription** auth (`codex login`, no `OPENAI_API_KEY`) | ✅ | ✅ table stakes — the official Codex MCP & OpenAI plugin do this too |
 
-*A snapshot, not a leaderboard — the Codex MCP space moves fast, so check each tool's current state. The point isn't "skill-codex wins everything"; it's that the operational details (subscription auth, real Windows support, never-frozen runs, guardrails) are where it focuses.*
+*A snapshot, not a leaderboard — the Codex MCP space moves fast, so check each tool's current state. Subscription auth (no API key) is **table stakes**: the official Codex MCP server and OpenAI's own plugin use your `codex login` too, so it's not a differentiator — it's just reassurance you won't get a metered API bill. Where skill-codex actually focuses is the operational details: real, CI-verified Windows support (incl. a Windows sandbox mode in which git works), never-frozen runs, guardrails, and an act-on-it review workflow.*
 
 ## See it in action
 
@@ -155,7 +157,7 @@ The slash commands are explicit entry points; the `codex-bridge` **agent skill**
 
 These `codex_exec` parameters are all optional — omit them and Codex uses its defaults:
 
-* **`model`** — pick the Codex model (e.g. `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`). Route cheap tasks to a smaller model and escalate hard ones.
+* **`model`** — pick the Codex model (e.g. `gpt-6.1-sol`, `gpt-6-luna`; availability depends on your ChatGPT plan and Codex version (`codex debug models` lists yours), and omitting it uses Codex's configured default). Route cheap tasks to a smaller model and escalate hard ones.
 * **`reasoningEffort`** — how hard Codex thinks: `minimal` | `low` | `medium` | `high` | `xhigh`.
 * **`sandbox`** — explicit policy (`read-only`, `workspace-write`, `danger-full-access`), overriding `mode`. Use `danger-full-access` only when you understand the risk.
 * **`sessionId`** — resume a previous Codex session for multi-round memory. Each response includes the session's thread id; pass it back so Codex retains context — e.g. a follow-up review that checks whether *previously flagged* issues were fixed.
@@ -191,7 +193,7 @@ Everything is optional. The most common knobs:
 |----------|---------|-------------|
 | `SKILL_CODEX_TIMEOUT_MS` | `300000` (5 min) | Subprocess timeout |
 | `SKILL_CODEX_MAX_RETRIES` | `3` | Retry count for transient errors |
-| `SKILL_CODEX_WINDOWS_SANDBOX` | `unelevated` | Windows-only Codex sandbox mode |
+| `SKILL_CODEX_WINDOWS_SANDBOX` | `unelevated` | Windows-only Codex sandbox mode: `unelevated`, `elevated` or `mxc` |
 
 The auto-review hook skips trivial diffs (docs-only, < 5 lines, whitespace) and forces review on security paths or large/cross-cutting changes, to preserve your Codex quota.
 
@@ -209,7 +211,46 @@ The auto-review hook skips trivial diffs (docs-only, < 5 lines, whitespace) and 
 
 **Lock file blocking runs** — a crashed run can leave a stale `.skill-codex.lock`. It auto-cleans after 15 minutes, or delete it manually.
 
-**Windows: "windows sandbox failed: spawn setup refresh" / Codex commands all blocked** — Codex's default *elevated* Windows sandbox fails to spawn shells on many setups ([openai/codex#24098](https://github.com/openai/codex/issues/24098), [#24259](https://github.com/openai/codex/issues/24259)). skill-codex pins `windows.sandbox=unelevated`, which spawns reliably. If your machine needs the elevated sandbox, set `SKILL_CODEX_WINDOWS_SANDBOX=elevated`.
+**Windows: which Codex sandbox does skill-codex use?** — skill-codex always passes `-c windows.sandbox=unelevated` on Windows, so it overrides `[windows] sandbox` in your `~/.codex/config.toml`. Tested on codex-cli 0.163.0, all three backends block writes outside the workspace, but only `unelevated` runs git cleanly. The `elevated` backend runs commands as a separate local account (`CodexSandboxOffline`), so git refuses your repo with *"detected dubious ownership"*. The `mxc` backend fails `git status` with *"this operation must be run in a work tree"*. The older *"windows sandbox failed: spawn setup refresh"* failure ([openai/codex#24098](https://github.com/openai/codex/issues/24098), [#24259](https://github.com/openai/codex/issues/24259)) is fixed in 0.163. To use another backend, set `SKILL_CODEX_WINDOWS_SANDBOX` to `elevated` or `mxc`; for `elevated`, also add your repos to git's `safe.directory`. Other values are ignored with a warning.
+
+## Security scanning (SkillSpector)
+
+**Verdict:** NVIDIA SkillSpector v2.3.13 currently reports **100/100, CRITICAL, DO NOT INSTALL** for this repo even though there are **zero CRITICAL findings**. That verdict is expected here: the score is saturated by the remaining HIGH findings, so fixing the resolved dependency issue did not move the verdict. Do not read the score as proof that a critical vulnerability remains, and do not read the baseline as a clean bill of health.
+
+```shell
+skillspector scan . --no-llm
+skillspector scan . --baseline .skillspector-baseline.yaml --no-llm
+skillspector scan . --baseline .skillspector-baseline.yaml --no-llm --show-suppressed
+```
+
+**LLM mode:** `--no-llm` matters. Without it, SkillSpector attempts LLM analysis and needs provider credentials such as `NVIDIA_INFERENCE_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY`.
+
+| Scan | Findings | Suppressed | Verdict |
+| --- | ---: | ---: | --- |
+| Fresh clone, raw | 53 | 0 | 100/100, CRITICAL, DO NOT INSTALL |
+| Fresh clone, with baseline | 50 | 3 | 100/100, CRITICAL, DO NOT INSTALL |
+| Built working copy, raw | 72 | 0 | 100/100, CRITICAL, DO NOT INSTALL |
+| Built working copy, with baseline | 50 | 22 | 100/100, CRITICAL, DO NOT INSTALL |
+
+**Baseline:** Baselined scans converge on 50 findings regardless of build state. `dist/` and `coverage/` are gitignored, so they exist only in a locally built copy and duplicate source findings. The baseline suppresses only `dist/**`, `coverage/**`, and `eval/corpus/**` - never `src/`, `setup/`, or `bin/`. Product code stays visible on purpose so the scan remains auditable rather than laundered; run `--show-suppressed` to verify the suppressed paths and written reasons rather than trusting this summary.
+
+**Remaining findings:** The severity mix is **14 HIGH, 26 MEDIUM, 10 LOW**. All 14 HIGH findings are verified false positives:
+
+| Rule | Location | Why it is not a product vulnerability |
+| --- | --- | --- |
+| AS1 | `setup/setup.ts:110,137` | Reads `~/.claude/settings.json`; that is the product's installer configuring the PostToolUse hook. |
+| RA1 | `bin/skill-codex.ts:29,84`; `src/errors/errors.ts:126` | Matches `--help` usage text and an error-message string. |
+| TM1/TM2 | `__tests__/runner/progress.test.ts:30,32`; `__tests__/tools/codex-exec.test.ts:291` | Test fixtures contain `rm -rf /` and `model: "x;rm -rf"` to prove the runner reports blocked commands and rejects invalid input. |
+| TM1 | `package-lock.json` | Matches a lockfile string. |
+| AS1/TM1/TM2 | `README.md` (this section) | Self-referential: documenting the fixtures above means quoting them, so this very section trips the same string detectors. Four HIGH findings exist only because the docs explain the false positives. |
+
+Also present at MEDIUM: `TM3` on `src/guards/preflight.ts:12,33`, matching the parameter names `skipAuth` and `skipLock`. Both are optional and default falsy, so the checks run by default.
+
+**Dependency status:** `SC4` is fixed and gone: there are now zero SC4 findings and zero CRITICAL findings. The dependency work was `@modelcontextprotocol/sdk` `^1.26.0` -> `^1.29.0`, `vitest` `^2.0.0` -> `^3.2.7`, `@vitest/coverage-v8` `^2.0.0` -> `^3.2.7`, and `tsup` `^8.0.0` -> `^8.5.1`. `npm audit` went from 15 vulnerabilities, including 2 critical, to 1 low. The remaining low is `esbuild` pinned transitively by `tsup`; it is build tooling, is never shipped, and is unreachable here because nothing runs an esbuild dev server.
+
+**SC4 nuance:** SkillSpector reads the declared semver range floor in `package.json`, not the resolved version in `package-lock.json`. It reported `vitest==3.2.4` from `^3.2.4`, so the declared floors were raised to versions that are themselves non-vulnerable - OSV reports CVE-2026-47429 affects `vitest <3.2.6`, and CVE-2024-53384 affects `tsup <=8.3.4` - rather than relying on the lockfile alone.
+
+*(Counts are a SkillSpector v2.3.13 snapshot and will shift as the scanner and dependencies change. Re-run the commands above rather than trusting these numbers.)*
 
 ## Development
 

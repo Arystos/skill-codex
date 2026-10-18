@@ -1,0 +1,18 @@
+diff --git a/src/invoice.ts b/src/invoice.ts
+index a0b1c2d..4e5f6a7 100644
+--- a/src/invoice.ts
++++ b/src/invoice.ts
+@@ -3,9 +3,13 @@ interface LineItem {
+   cents: number;
+ }
+
+-export function totalCents(items: LineItem[]): number {
+-  return items.reduce((sum, it) => sum + it.cents * it.qty, 0);
+-}
++export function totalCents(items: LineItem[]): number {
++  // Money is now summed in floating-point dollars and converted back to
++  // cents at the end. 0.1 + 0.2 style error means a $0.30 invoice can
++  // round to 29 or 31 cents — silent off-by-a-cent in billing.
++  const dollars = items.reduce((sum, it) => sum + (it.cents / 100) * it.qty, 0);
++  return Math.round(dollars * 100);
++}

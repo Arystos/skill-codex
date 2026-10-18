@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- **Model examples updated.** `gpt-5.5` was retired for ChatGPT-auth users on 2026-10-14. Docs, command help, and the `model` tool description now use `gpt-6.1-sol` and `gpt-6-luna` (slugs from the Codex 0.163.0 bundled catalog) and point to `codex debug models`, since availability depends on the ChatGPT plan.
+- Verified against codex-cli 0.163.0.
+- **Windows sandbox pin re-validated on codex-cli 0.163.0, and its reason changed.** The `elevated` backend's `spawn setup refresh` failure (openai/codex#24098, #24259) is fixed. skill-codex still pins `windows.sandbox=unelevated`, because `elevated` runs commands as a separate local account and git rejects the user's repos ("detected dubious ownership"), and `mxc` fails `git status`. All three backends block writes outside the workspace.
+- **`SKILL_CODEX_WINDOWS_SANDBOX` now accepts exactly `elevated`, `unelevated` or `mxc`** (trimmed, case-insensitive). Any other value is ignored with a stderr warning instead of being forwarded to Codex.
+- **Errors come from Codex's `turn.failed` event.** The HTTP status classifies the failure (401/403 auth, 429 rate limit, 5xx server, other 4xx invalid request); stderr keyword matching is now only the fallback. JSON-encoded API errors are unwrapped to their human message. Transient reconnect `error` events are no longer treated as fatal.
+- Auth and rate-limit errors now include Codex's own message.
+- **Progress notifications** for `web_search` (query), `mcp_tool_call` (server/tool) and `todo_list` (plan step) items.
+
+### Added
+- **`INVALID_REQUEST` error code** (non-retryable) — e.g. a model the ChatGPT plan does not support now reports the model problem instead of raw JSON.
+
+### Removed
+- Parser, progress and live-log handling for `file_read` / `file_write` / `file_edit` items and top-level `result` / `message` events. No version of Codex's `exec --json` schema has emitted them.
+
+### Fixed
+- A failed command with `exit_code: null` showed "exit null"; it now shows `failed`.
+
 ## [0.8.1] - 2026-06-20
 
 ### Added

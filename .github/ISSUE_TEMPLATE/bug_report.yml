@@ -46,7 +46,7 @@ body:
     attributes:
       label: Versions
       description: "Output of: `npx skill-codex --version`, `codex --version`, `node --version`"
-      placeholder: "skill-codex 0.8.1 · codex-cli 0.133.0 · node v22"
+      placeholder: "skill-codex 0.8.1 · codex-cli 0.163.0 · node v22"
     validations:
       required: true
   - type: textarea

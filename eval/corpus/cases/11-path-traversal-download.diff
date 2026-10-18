@@ -1,0 +1,20 @@
+diff --git a/src/files-route.ts b/src/files-route.ts
+index b1c2d3e..5f6a7b8 100644
+--- a/src/files-route.ts
++++ b/src/files-route.ts
+@@ -1,11 +1,15 @@
+ import { join } from "node:path";
+ import { readFile } from "node:fs/promises";
+
+ const UPLOADS = "/var/app/uploads";
+
+-export async function download(name: string): Promise<Buffer> {
+-  const safe = name.replace(/[^a-zA-Z0-9._-]/g, "");
+-  return readFile(join(UPLOADS, safe));
+-}
++export async function download(name: string): Promise<Buffer> {
++  // `name` is user-controlled and joined directly. A value like
++  // "../../etc/passwd" escapes UPLOADS — path.join normalises the "..",
++  // so the read happens outside the intended directory.
++  return readFile(join(UPLOADS, name));
++}

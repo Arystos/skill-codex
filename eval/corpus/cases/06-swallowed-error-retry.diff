@@ -1,0 +1,23 @@
+diff --git a/src/fetch-json.ts b/src/fetch-json.ts
+index 6f7a8b9..0c1d2e3 100644
+--- a/src/fetch-json.ts
++++ b/src/fetch-json.ts
+@@ -2,11 +2,15 @@ export async function fetchJson<T>(url: string): Promise<T | null> {
+-  const res = await fetch(url);
+-  if (!res.ok) {
+-    throw new Error(`HTTP ${res.status} for ${url}`);
+-  }
+-  return (await res.json()) as T;
++  try {
++    const res = await fetch(url);
++    if (!res.ok) {
++      throw new Error(`HTTP ${res.status} for ${url}`);
++    }
++    return (await res.json()) as T;
++  } catch {
++    // Every error — network failure, 500, malformed JSON — is swallowed and
++    // reported as `null`, indistinguishable from a legitimately empty body.
++    // Callers cannot tell "no data" from "request failed".
++    return null;
++  }
+ }

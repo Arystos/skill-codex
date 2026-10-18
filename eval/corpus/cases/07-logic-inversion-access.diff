@@ -1,0 +1,19 @@
+diff --git a/src/access.ts b/src/access.ts
+index 7a8b9c0..1d2e3f4 100644
+--- a/src/access.ts
++++ b/src/access.ts
+@@ -5,9 +5,12 @@ interface Session {
+   roles: string[];
+ }
+
+-export function canDelete(session: Session, ownerId: string): boolean {
+-  const isOwner = session.userId === ownerId;
+-  const isAdmin = session.roles.includes("admin");
+-  return isOwner || isAdmin;
++export function canDelete(session: Session, ownerId: string): boolean {
++  const isOwner = session.userId === ownerId;
++  const isAdmin = session.roles.includes("admin");
++  // Condition inverted: returns true only when the caller is NEITHER owner
++  // nor admin, so strangers can delete and the real owner is denied.
++  return !(isOwner || isAdmin);
+ }

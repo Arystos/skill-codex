@@ -1,0 +1,26 @@
+diff --git a/src/report-writer.ts b/src/report-writer.ts
+index 4d5e6f7..8a9b0c1 100644
+--- a/src/report-writer.ts
++++ b/src/report-writer.ts
+@@ -1,12 +1,16 @@
+ import { open } from "node:fs/promises";
+
+-export async function writeReport(path: string, rows: string[]): Promise<void> {
+-  const handle = await open(path, "w");
+-  try {
+-    for (const row of rows) {
+-      await handle.write(row + "\n");
+-    }
+-  } finally {
+-    await handle.close();
+-  }
+-}
++export async function writeReport(path: string, rows: string[]): Promise<void> {
++  const handle = await open(path, "w");
++  for (const row of rows) {
++    // If any write rejects (disk full, bad encoding), we return without
++    // reaching close(): the file descriptor leaks. There is no try/finally.
++    await handle.write(row + "\n");
++  }
++  await handle.close();
++}
