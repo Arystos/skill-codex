@@ -41,6 +41,26 @@ properties for anyone evaluating it:
 - **The subprocess prompt is passed via stdin**, never interpolated into a shell
   command line.
 
+## Supply chain
+
+How changes reach the npm package:
+
+- **Every change goes through a pull request** on a protected `master`: CI must
+  pass on Windows, macOS and Linux, and force pushes and branch deletion are
+  blocked. CI on a pull request from an outside contributor runs only after a
+  maintainer approves it, and never sees repository secrets.
+- **PR safety checks** flag new dependencies with known vulnerabilities, and
+  hidden Unicode (bidi controls, invisible tag characters) that could make code
+  or agent instructions read differently from what they do.
+- **Manual review** for any change to the files that run on your machine or
+  steer an AI agent: `hooks/`, `commands/`, `skills/`, `setup/`, `bin/`, the
+  plugin manifests, `package.json`/`package-lock.json` and `.github/`.
+- **GitHub Actions are pinned to commit SHAs**; Dependabot keeps them and the
+  npm dependencies current. CodeQL and secret scanning run on the repository.
+- **Releases are published from a tagged commit by the `publish` workflow**
+  with npm trusted publishing (no long-lived npm token) and a signed provenance
+  statement you can check on the npm package page.
+
 ## Scope
 
 skill-codex orchestrates the `codex` CLI; it does not control what Codex itself
