@@ -21,6 +21,11 @@ export const MAX_RESPONSE_CHARS = 36_000;
 /** Most recent activity lines (commands, file writes) shown in a response. */
 export const MAX_ACTIVITY_LINES = 40;
 
+/** Largest inline `outputSchema` accepted, in characters of its JSON text. */
+export const MAX_OUTPUT_SCHEMA_CHARS = 64_000;
+/** Prefix of the temp directory that holds an `outputSchema` file for one run. */
+export const OUTPUT_SCHEMA_DIR_PREFIX = "skill-codex-schema-";
+
 export const LOCK_STALE_MS = 900_000; // 15 minutes
 export const LOCK_FILENAME = ".skill-codex.lock";
 

@@ -21,6 +21,11 @@ export interface TokenUsage {
 
 export interface CodexResult {
   readonly content: string;
+  /**
+   * The last agent message alone. With `--output-schema`, Codex constrains
+   * only this message; earlier messages in `content` can be prose.
+   */
+  readonly finalMessage?: string;
   readonly activity: ActivityEntry[];
   readonly usage: TokenUsage | null;
   readonly raw: string;
@@ -161,6 +166,7 @@ export function parseCodexOutput(raw: string): CodexResult {
 
   return {
     content: agentMessage,
+    ...(messages.length > 0 ? { finalMessage: messages[messages.length - 1] } : {}),
     activity,
     usage,
     raw,

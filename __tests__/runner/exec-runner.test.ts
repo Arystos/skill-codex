@@ -385,6 +385,62 @@ describe("execCodex", () => {
     }
   });
 
+  describe("--output-schema", () => {
+    it("passes the schema file unquoted outside Windows, before the stdin sentinel", async () => {
+      const original = Object.getOwnPropertyDescriptor(process, "platform");
+      Object.defineProperty(process, "platform", { value: "linux", configurable: true });
+      try {
+        mockSpawn.mockReturnValue(makeMockProcess({ stdoutData: agentOutput('{"ok":true}') }) as any);
+        await execCodex({ prompt: "x", cwd: "/tmp", mode: "exec", outputSchemaPath: "/tmp/s/schema.json" });
+
+        const [_bin, args] = mockSpawn.mock.calls[0];
+        const i = args.indexOf("--output-schema");
+        expect(args[i + 1]).toBe("/tmp/s/schema.json");
+        expect(args[args.length - 1]).toBe("-");
+      } finally {
+        if (original) Object.defineProperty(process, "platform", original);
+      }
+    });
+
+    it("passes the schema file to exec resume", async () => {
+      mockSpawn.mockReturnValue(makeMockProcess({ stdoutData: agentOutput('{"ok":true}') }) as any);
+      await execCodex({ prompt: "x", cwd: "/tmp", mode: "exec", sessionId: "s-1", outputSchemaPath: "/tmp/schema.json" });
+
+      const [_bin, args] = mockSpawn.mock.calls[0];
+      expect(args.slice(0, 3)).toEqual(["exec", "resume", "s-1"]);
+      expect(args).toContain("--output-schema");
+    });
+
+    it("omits the flag when no schema is given", async () => {
+      mockSpawn.mockReturnValue(makeMockProcess({ stdoutData: agentOutput("ok") }) as any);
+      await execCodex({ prompt: "x", cwd: "/tmp", mode: "exec" });
+      expect(mockSpawn.mock.calls[0][1]).not.toContain("--output-schema");
+    });
+
+    it("quotes the schema path for cmd.exe on Windows", async () => {
+      const original = Object.getOwnPropertyDescriptor(process, "platform");
+      Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+      vi.stubEnv("SKILL_CODEX_WINDOWS_SANDBOX", "unelevated");
+      try {
+        mockSpawn.mockReturnValue(makeMockProcess({ stdoutData: agentOutput("ok") }) as any);
+        await execCodex({ prompt: "x", cwd: "/tmp", mode: "exec", outputSchemaPath: "C:\\Users\\John Smith\\schema.json" });
+
+        const [_bin, args] = mockSpawn.mock.calls[0];
+        expect(args[args.indexOf("--output-schema") + 1]).toBe('"C:\\Users\\John Smith\\schema.json"');
+      } finally {
+        if (original) Object.defineProperty(process, "platform", original);
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it("refuses a schema path with shell metacharacters without spawning", async () => {
+      await expect(
+        execCodex({ prompt: "x", cwd: "/tmp", mode: "exec", outputSchemaPath: "/tmp/a&calc/schema.json" }),
+      ).rejects.toThrow(/unsafe/);
+      expect(mockSpawn).not.toHaveBeenCalled();
+    });
+  });
+
   it("writes prompt to stdin", async () => {
     const validOutput = agentOutput("ok");
     const proc = makeMockProcess({ stdoutData: validOutput });

@@ -4,6 +4,8 @@ import { z } from "zod";
 import { runPreflight } from "../guards/preflight.js";
 import { execCodex } from "../runner/exec-runner.js";
 import { withRetry } from "../runner/retry.js";
+import { writeOutputSchemaFile, type OutputSchemaFile } from "../runner/output-schema.js";
+import { MAX_OUTPUT_SCHEMA_CHARS } from "../config/constants.js";
 import { InvalidRequestError } from "../errors/errors.js";
 import type { CodexResult } from "../runner/output-parser.js";
 import { describeModelsForTool, listAvailableModels, readConfiguredModel } from "../codex/models.js";
@@ -25,6 +27,11 @@ export const MODEL_DESCRIPTION =
   "the strongest one for code review, security-sensitive or multi-file implementation work; a fast, cheap one for quick questions, summaries and small edits. " +
   "Omit it to use the user's configured default, which is also the safe choice when unsure or when no list is shown. " +
   "A model Codex rejects for this account falls back to the default automatically.";
+
+export const OUTPUT_SCHEMA_DESCRIPTION =
+  "JSON Schema (an object, inline) for Codex's final message, e.g. review findings with severity/file/line/fix. " +
+  "Codex sends it to the model in strict mode: every object needs \"additionalProperties\": false and must list all its properties in \"required\". " +
+  "The response shows the final message as a JSON block. Not supported with review.";
 
 export const inputSchema = z.object({
   prompt: z.string().optional().describe("The task description for Codex"),
@@ -70,6 +77,13 @@ export const inputSchema = z.object({
     .regex(/^[0-9a-fA-F]{4,64}$/)
     .optional()
     .describe("With review: review the changes introduced by this commit SHA."),
+  outputSchema: z
+    .record(z.string(), z.unknown())
+    .refine((schema) => JSON.stringify(schema).length <= MAX_OUTPUT_SCHEMA_CHARS, {
+      message: `outputSchema must be at most ${MAX_OUTPUT_SCHEMA_CHARS} characters of JSON`,
+    })
+    .optional()
+    .describe(OUTPUT_SCHEMA_DESCRIPTION),
   cwd: z.string().optional().describe("Working directory (defaults to server cwd)"),
   timeoutMs: z.number().optional().describe("Override default timeout in milliseconds"),
   requireGit: z.boolean().default(false).describe("Fail if not inside a git repository"),
@@ -130,6 +144,7 @@ export const TOOL_INPUT_JSON_SCHEMA = {
       pattern: "^[0-9a-fA-F]{4,64}$",
       description: "With review: review the changes introduced by this commit SHA.",
     },
+    outputSchema: { type: "object", description: OUTPUT_SCHEMA_DESCRIPTION },
     cwd: { type: "string", description: "Working directory (defaults to server cwd)" },
     timeoutMs: { type: "number", description: "Override default timeout in milliseconds" },
     requireGit: {
@@ -175,6 +190,7 @@ function isModelRejection(err: unknown): err is InvalidRequestError {
 async function runWithModelFallback(
   input: CodexExecInput,
   cwd: string,
+  outputSchemaPath: string | undefined,
   onProgress?: (message: string) => void,
 ): Promise<{ result: CodexResult; model: string | undefined; fallbackNote: string | null }> {
   const run = (model: string | undefined): Promise<CodexResult> =>
@@ -191,6 +207,7 @@ async function runWithModelFallback(
         reviewBase: input.reviewBase,
         reviewCommit: input.reviewCommit,
         timeoutMs: input.timeoutMs,
+        outputSchemaPath,
         onProgress,
       }),
     );
@@ -226,6 +243,8 @@ export async function handleCodexExec(
     isError: true,
   });
   if (input.review && input.sessionId) return optError("review and sessionId are mutually exclusive");
+  // `codex exec review` produces its own review format; outputSchema is only for exec and resume.
+  if (input.review && input.outputSchema) return optError("outputSchema is not supported with review");
   if (input.reviewBase && input.reviewCommit) return optError("reviewBase and reviewCommit are mutually exclusive");
   if ((input.reviewBase ?? input.reviewCommit) && !input.review) {
     return optError("reviewBase/reviewCommit require review: true");
@@ -247,6 +266,7 @@ export async function handleCodexExec(
   }
 
   let lockRelease: (() => void) | null = null;
+  let schemaFile: OutputSchemaFile | null = null;
 
   try {
     const { lockHandle } = await runPreflight({
@@ -256,7 +276,8 @@ export async function handleCodexExec(
     lockRelease = lockHandle?.release ?? null;
 
     const versionNotice = await takeCodexVersionNotice();
-    const run = await runWithModelFallback(input, cwd, onProgress);
+    schemaFile = input.outputSchema ? writeOutputSchemaFile(input.outputSchema) : null;
+    const run = await runWithModelFallback(input, cwd, schemaFile?.path, onProgress);
     const notes = [versionNotice, run.fallbackNote].filter((n): n is string => n !== null);
     const fullOutputPath = saveFullOutput(run.result.content, run.result.logPath);
 
@@ -270,6 +291,7 @@ export async function handleCodexExec(
       isError: true,
     };
   } finally {
+    schemaFile?.cleanup();
     lockRelease?.();
   }
 }

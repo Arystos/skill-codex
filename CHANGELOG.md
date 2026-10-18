@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **`outputSchema` on `codex_exec`** (#20). Pass an inline JSON Schema and Codex constrains its final message to it (`codex exec --output-schema`), e.g. review findings as `{severity, file, line, fix}`. skill-codex writes the schema to a private temp file and deletes it when the call ends. The response shows the final message as a JSON block. Works with `sessionId`; rejected with `review`. Codex uses OpenAI strict mode, so a non-strict schema fails with `INVALID_REQUEST`. On Windows, path arguments to the codex spawn are now quoted for cmd.exe, and paths with cmd.exe metacharacters (`%`, `"`, `&`, ...) are refused.
+
 ## [0.9.0] - 2026-10-18
 
 ### Changed
