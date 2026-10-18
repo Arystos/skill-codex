@@ -60,7 +60,7 @@ Because a subagent is the **same model**. When Claude reviews Claude, you inheri
 
 | | skill-codex | Most Codex MCP bridges |
 |---|---|---|
-| **Windows** verified in CI (not just "should work") | ✅ 9-way matrix (Windows/macOS/Linux × Node 18/20/22) | ❌ usually Linux-only CI |
+| **Windows** verified in CI (not just "should work") | ✅ 9-way matrix (Windows/macOS/Linux × Node 20/22/24) | ❌ usually Linux-only CI |
 | **git and builds work inside Codex's Windows sandbox** (no WSL needed) | ✅ under `elevated`, skill-codex trusts the workspace repo for git (re-tested on codex-cli 0.163) | ⚠️ inherit your Codex backend; under `elevated`, git rejects your repo |
 | **Live progress** so long runs never look frozen | ✅ MCP progress + tail-able log | ⚠️ varies |
 | **Slash commands** (`/codex-review`, `/codex-do`, `/codex-consult`) | ✅ | ⚠️ some |

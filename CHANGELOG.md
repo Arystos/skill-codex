@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 ## [0.9.0] - 2026-10-18
 
 ### Changed
+- **Requires Node.js 20 or newer** (was 18). Node 18 reached end of life in April 2025, and vitest 4 (needed for a security fix) does not run on it. CI now tests Node 20, 22 and 24.
 - **Model examples updated.** `gpt-5.5` was retired for ChatGPT-auth users on 2026-10-14. Docs, command help, and the `model` tool description now use `gpt-6.1-sol` and `gpt-6-luna` (slugs from the Codex 0.163.0 bundled catalog) and point to `codex debug models`, since availability depends on the ChatGPT plan.
 - Verified against codex-cli 0.163.0.
 - **Windows sandbox follows your Codex config, and git works under `elevated`.** skill-codex no longer forces `unelevated`. The mode comes from `SKILL_CODEX_WINDOWS_SANDBOX`, else `[windows] sandbox` in `~/.codex/config.toml`, else `unelevated`. Under `unelevated`, Codex cannot start child processes (`EPERM`), so it can't run builds or tests (#26). Under `elevated`, commands run as a separate account and git rejected the repo ("detected dubious ownership"); skill-codex now trusts the workspace repo for the Codex process via `GIT_CONFIG_*` environment variables. Re-tested on codex-cli 0.163.0: under `elevated`, Codex runs git, npm and vitest. The `elevated` spawn failure (openai/codex#24098) is fixed upstream. `skill-codex doctor` warns when the mode is `unelevated`.
@@ -52,6 +53,7 @@ All notable changes to this project will be documented in this file.
 - `skill-codex --version` printed `0.0.0` from the built bin (it looked for `package.json` inside `dist/`).
 
 ### Security
+- **Dependency security updates.** `@modelcontextprotocol/sdk` ^1.31.0 (fixes an OAuth client credential leak) with its patched transitive dependencies (`proxy-addr`, `hono`, `ip-address`, `fast-uri`, `source-map-js`, `brace-expansion`), and `vitest`/`@vitest/coverage-v8` ^4.1.11 (drops the vulnerable `tinypool`). `npm audit`: 17 findings (3 critical, 6 high) → 1 low (dev-only esbuild via tsup).
 - Raised dependency floors (`@modelcontextprotocol/sdk` ^1.29.0, `vitest` ^3.2.7, `tsup` ^8.5.1) so a fresh install cannot resolve a vulnerable version, and added a SkillSpector baseline that only suppresses generated files and the deliberately vulnerable eval corpus.
 
 ## [0.8.1] - 2026-06-20
