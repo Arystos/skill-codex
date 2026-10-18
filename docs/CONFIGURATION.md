@@ -96,3 +96,39 @@ are optional; omit them and Codex uses its configured defaults.
 | `cwd` | string | Working directory (defaults to server cwd) |
 | `timeoutMs` | number | Override the default timeout |
 | `requireGit` | boolean | Fail if not inside a git repository |
+
+
+## Model routing recipes
+
+Claude picks the Codex model for each call from the models your account offers. The `codex_exec` tool description lists them; run `codex debug models` to see the same list. Use these recipes when you want to choose yourself, with the command flags `--model` and `--effort`:
+
+| Workflow | Model | Reasoning effort | Use for |
+|----------|-------|------------------|---------|
+| `/codex-do` | a fast model, e.g. `gpt-6-luna` | default | Mechanical or bulk work |
+| `/codex-review` | the strongest model on your plan, e.g. `gpt-6.1-sol` | `high` | Careful review and higher-rigor checks |
+
+Model availability depends on your ChatGPT plan and changes between Codex releases. If your plan does not offer `gpt-6.1-sol`, use the strongest model that `codex debug models` lists (for example `gpt-5.6-terra`). A model Codex rejects falls back to your configured default, with a note in the response.
+
+```shell
+/codex-do --model gpt-6-luna "convert the fixtures in test/data to JSON"
+/codex-review --model gpt-6.1-sol --effort high
+```
+
+The same choices as `codex_exec` parameters:
+
+```json
+{
+  "model": "gpt-6-luna"
+}
+```
+
+For a careful review:
+
+```json
+{
+  "model": "gpt-6.1-sol",
+  "reasoningEffort": "high"
+}
+```
+
+Use the lighter model for straightforward, repetitive work, and keep the stronger model with higher reasoning effort for work that benefits from a more careful pass.
