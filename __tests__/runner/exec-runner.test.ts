@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { EventEmitter } from "node:events";
 import { Readable, Writable } from "node:stream";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
   AuthExpiredError,
   BridgeError,
@@ -14,6 +17,8 @@ import {
 // Mock node:child_process before importing module under test
 vi.mock("node:child_process", () => ({
   spawn: vi.fn(),
+  // `git rev-parse --show-toplevel`, used to trust the repo under the elevated Windows sandbox
+  execFileSync: vi.fn(() => "C:/repo\n"),
 }));
 
 // Mock guard modules before importing module under test
@@ -342,6 +347,9 @@ describe("execCodex", () => {
   it("injects windows.sandbox=unelevated config when running on Windows", async () => {
     const original = Object.getOwnPropertyDescriptor(process, "platform");
     Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    // An empty Codex home, so the developer's own config.toml can't change the mode.
+    const codexHome = fs.mkdtempSync(path.join(os.tmpdir(), "sc-runner-home-"));
+    vi.stubEnv("CODEX_HOME", codexHome);
     try {
       const validOutput = agentOutput("ok");
       const proc = makeMockProcess({ stdoutData: validOutput });
@@ -354,6 +362,26 @@ describe("execCodex", () => {
       expect(args).toContain("windows.sandbox=unelevated");
     } finally {
       if (original) Object.defineProperty(process, "platform", original);
+      vi.unstubAllEnvs();
+      fs.rmSync(codexHome, { recursive: true, force: true });
+    }
+  });
+
+  it("trusts the workspace repo for git under the elevated Windows sandbox", async () => {
+    const original = Object.getOwnPropertyDescriptor(process, "platform");
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    vi.stubEnv("SKILL_CODEX_WINDOWS_SANDBOX", "elevated");
+    try {
+      mockSpawn.mockReturnValue(makeMockProcess({ stdoutData: agentOutput("ok") }) as any);
+      await execCodex({ prompt: "review", cwd: "/tmp", mode: "exec" });
+
+      const env = mockSpawn.mock.calls[0]?.[2]?.env as Record<string, string>;
+      const index = Number(env.GIT_CONFIG_COUNT) - 1;
+      expect(env[`GIT_CONFIG_KEY_${index}`]).toBe("safe.directory");
+      expect(env[`GIT_CONFIG_VALUE_${index}`]).toBe("C:/repo");
+    } finally {
+      if (original) Object.defineProperty(process, "platform", original);
+      vi.unstubAllEnvs();
     }
   });
 

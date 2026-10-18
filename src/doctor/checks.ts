@@ -8,7 +8,7 @@ import { listAvailableModels, readConfiguredModel } from "../codex/models.js";
 import { codexVersionNotice, compareVersions, getInstalledCodexVersion, parseCodexVersion } from "../codex/version-check.js";
 import { detectInstall, isDisabledFor, type InstallState } from "../install/detect.js";
 import { extractTurnFailure } from "../runner/output-parser.js";
-import { getSandboxConfigArgs } from "../runner/sandbox-args.js";
+import { currentWindowsSandbox, getSandboxConfigArgs, type WindowsSandboxChoice } from "../runner/sandbox-args.js";
 
 export type CheckStatus = "ok" | "warn" | "fail" | "skip";
 
@@ -98,24 +98,27 @@ export async function checkAuth(): Promise<CheckResult> {
   return { name: "auth", status: "fail", detail };
 }
 
-export function checkSandbox(): CheckResult {
+export function checkSandbox(choice: WindowsSandboxChoice = currentWindowsSandbox()): CheckResult {
   if (process.platform !== "win32") {
     return { name: "sandbox", status: "skip", detail: "not Windows — Codex uses its native sandbox" };
   }
-  const mode = getSandboxConfigArgs()[1]?.split("=")[1] ?? "";
-  const raw = process.env[WINDOWS_SANDBOX_ENV]?.trim();
-  if (raw && raw.toLowerCase() !== mode) {
-    return { name: "sandbox", status: "warn", detail: `${WINDOWS_SANDBOX_ENV}=${raw} is not a valid mode; using windows.sandbox=${mode}` };
+  const source = { env: WINDOWS_SANDBOX_ENV, config: "~/.codex/config.toml", default: "default" }[choice.source];
+  const label = `windows.sandbox=${choice.mode} (${source})`;
+  if (choice.invalidOverride) {
+    return { name: "sandbox", status: "warn", detail: `${WINDOWS_SANDBOX_ENV}=${choice.invalidOverride} is not a valid mode; using ${label}` };
   }
-  if (mode !== "unelevated") {
+  if (choice.mode === "unelevated") {
     return {
       name: "sandbox",
       status: "warn",
-      detail: `windows.sandbox=${mode} — git commands fail inside this sandbox`,
-      hint: `unset ${WINDOWS_SANDBOX_ENV} to use unelevated (see docs/CONFIGURATION.md)`,
+      detail: `${label} — Codex cannot start child processes, so it can't run builds or tests`,
+      hint: 'set `[windows] sandbox = "elevated"` in ~/.codex/config.toml (Codex may ask for a one-time elevated setup)',
     };
   }
-  return { name: "sandbox", status: "ok", detail: `windows.sandbox=${mode}` };
+  if (choice.mode === "mxc") {
+    return { name: "sandbox", status: "warn", detail: `${label} — git commands fail inside this sandbox`, hint: "use elevated instead" };
+  }
+  return { name: "sandbox", status: "ok", detail: `${label}; git trusts the workspace repo via safe.directory` };
 }
 
 function describeRegistration(state: InstallState): string {

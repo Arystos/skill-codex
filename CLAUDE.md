@@ -74,7 +74,7 @@ The server exposes one tool: `codex_exec` with params:
 | `SKILL_CODEX_MAX_RETRIES` | `3` | Retry count for transient errors |
 | `SKILL_CODEX_DEBUG` | -- | Enable debug logging to stderr |
 | `SKILL_CODEX_DEPTH` | `0` | Recursion depth (set automatically) |
-| `SKILL_CODEX_WINDOWS_SANDBOX` | `unelevated` | Windows `windows.sandbox` mode (`elevated`/`unelevated`/`mxc`; others ignored). `unelevated` is the only mode where git works in the sandbox on codex-cli 0.163 (`elevated` → git "dubious ownership", `mxc` → `git status` fails) |
+| `SKILL_CODEX_WINDOWS_SANDBOX` | `[windows] sandbox` from `~/.codex/config.toml`, else `unelevated` | Windows `windows.sandbox` mode (`elevated`/`unelevated`/`mxc`; others ignored). Use `elevated`: git works there via the `safe.directory` env skill-codex sets, and child processes work; under `unelevated` they fail with EPERM (#26) |
 
 ## Edge Case Handling
 
