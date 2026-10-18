@@ -4,7 +4,7 @@ description: Uses OpenAI Codex, via the codex_exec MCP tool, as an independent s
 license: MIT
 metadata:
   author: Arystos
-  version: 0.9.0
+  version: 0.10.0
   mcp-server: skill-codex
   category: developer-tools
 ---
