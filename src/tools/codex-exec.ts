@@ -4,6 +4,8 @@ import { z } from "zod";
 import { runPreflight } from "../guards/preflight.js";
 import { execCodex } from "../runner/exec-runner.js";
 import { withRetry } from "../runner/retry.js";
+import { MAX_ADD_DIRS } from "../config/constants.js";
+import { resolveAddDirs } from "./add-dirs.js";
 import { writeOutputSchemaFile, type OutputSchemaFile } from "../runner/output-schema.js";
 import { MAX_OUTPUT_SCHEMA_CHARS } from "../config/constants.js";
 import { InvalidRequestError } from "../errors/errors.js";
@@ -28,6 +30,10 @@ export const MODEL_DESCRIPTION =
   "Omit it to use the user's configured default, which is also the safe choice when unsure or when no list is shown. " +
   "A model Codex rejects for this account falls back to the default automatically.";
 
+export const ADD_DIRS_DESCRIPTION =
+  "Extra directories Codex may WRITE to besides cwd (codex exec --add-dir), e.g. sibling packages in a monorepo. " +
+  "Absolute, or relative to cwd; each must exist. This widens what Codex can modify, so pass only directories the task needs. " +
+  "Needs a writable sandbox (mode full-auto, or sandbox workspace-write / danger-full-access); not supported with review or sessionId.";
 export const OUTPUT_SCHEMA_DESCRIPTION =
   "JSON Schema (an object, inline) for Codex's final message, e.g. review findings with severity/file/line/fix. " +
   "Codex sends it to the model in strict mode: every object needs \"additionalProperties\": false and must list all its properties in \"required\". " +
@@ -77,6 +83,11 @@ export const inputSchema = z.object({
     .regex(/^[0-9a-fA-F]{4,64}$/)
     .optional()
     .describe("With review: review the changes introduced by this commit SHA."),
+  addDirs: z
+    .array(z.string().min(1).max(4096))
+    .max(MAX_ADD_DIRS)
+    .optional()
+    .describe(ADD_DIRS_DESCRIPTION),
   outputSchema: z
     .record(z.string(), z.unknown())
     .refine((schema) => JSON.stringify(schema).length <= MAX_OUTPUT_SCHEMA_CHARS, {
@@ -144,6 +155,12 @@ export const TOOL_INPUT_JSON_SCHEMA = {
       pattern: "^[0-9a-fA-F]{4,64}$",
       description: "With review: review the changes introduced by this commit SHA.",
     },
+    addDirs: {
+      type: "array",
+      items: { type: "string", minLength: 1, maxLength: 4096 },
+      maxItems: MAX_ADD_DIRS,
+      description: ADD_DIRS_DESCRIPTION,
+    },
     outputSchema: { type: "object", description: OUTPUT_SCHEMA_DESCRIPTION },
     cwd: { type: "string", description: "Working directory (defaults to server cwd)" },
     timeoutMs: { type: "number", description: "Override default timeout in milliseconds" },
@@ -179,6 +196,11 @@ export async function getToolDefinition(): Promise<{
   return { name: TOOL_NAME, description: TOOL_DESCRIPTION, inputSchema };
 }
 
+/** The sandbox a fresh `codex exec` runs under: explicit `sandbox`, else derived from `mode`. */
+function effectiveSandbox(input: CodexExecInput): "read-only" | "workspace-write" | "danger-full-access" {
+  return input.sandbox ?? (input.mode === "full-auto" ? "workspace-write" : "read-only");
+}
+
 function isModelRejection(err: unknown): err is InvalidRequestError {
   return err instanceof InvalidRequestError && /model/i.test(err.detail);
 }
@@ -190,6 +212,7 @@ function isModelRejection(err: unknown): err is InvalidRequestError {
 async function runWithModelFallback(
   input: CodexExecInput,
   cwd: string,
+  addDirs: readonly string[],
   outputSchemaPath: string | undefined,
   onProgress?: (message: string) => void,
 ): Promise<{ result: CodexResult; model: string | undefined; fallbackNote: string | null }> {
@@ -207,6 +230,7 @@ async function runWithModelFallback(
         reviewBase: input.reviewBase,
         reviewCommit: input.reviewCommit,
         timeoutMs: input.timeoutMs,
+        addDirs,
         outputSchemaPath,
         onProgress,
       }),
@@ -256,6 +280,26 @@ export async function handleCodexExec(
     );
   }
 
+  // --add-dir exists only on a fresh `codex exec`, and Codex ignores it
+  // without a writable sandbox, so reject those combinations up front.
+  const addDirsGiven = (input.addDirs?.length ?? 0) > 0;
+  if (addDirsGiven && input.review) return optError("addDirs is not supported with review");
+  if (addDirsGiven && input.sessionId) {
+    return optError("addDirs is not supported with sessionId: a resumed session keeps its original writable roots");
+  }
+  if (addDirsGiven && effectiveSandbox(input) === "read-only") {
+    return optError(
+      "addDirs needs a writable sandbox: set mode to full-auto, or sandbox to workspace-write or danger-full-access (read-only Codex ignores --add-dir)",
+    );
+  }
+  const addDirs = resolveAddDirs(input.addDirs ?? [], cwd);
+  if (!addDirs.ok) {
+    return {
+      content: [{ type: "text", text: `[skill-codex error: INVALID_ADD_DIR] ${addDirs.error}` }],
+      isError: true,
+    };
+  }
+
   // `prompt` is optional only for native review (where it's optional custom
   // instructions). Every other call must supply a prompt.
   if (!input.review && !input.prompt?.trim()) {
@@ -277,11 +321,14 @@ export async function handleCodexExec(
 
     const versionNotice = await takeCodexVersionNotice();
     schemaFile = input.outputSchema ? writeOutputSchemaFile(input.outputSchema) : null;
-    const run = await runWithModelFallback(input, cwd, schemaFile?.path, onProgress);
+    const run = await runWithModelFallback(input, cwd, addDirs.dirs, schemaFile?.path, onProgress);
     const notes = [versionNotice, run.fallbackNote].filter((n): n is string => n !== null);
     const fullOutputPath = saveFullOutput(run.result.content, run.result.logPath);
 
-    const formatted = formatRichResponse(run.result, { ...input, model: run.model }, cwd, { notes, fullOutputPath });
+    const formatted = formatRichResponse(run.result, { ...input, model: run.model, addDirs: addDirs.dirs }, cwd, {
+      notes,
+      fullOutputPath,
+    });
     return {
       content: [{ type: "text", text: formatted }],
     };

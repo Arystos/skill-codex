@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **`addDirs` on `codex_exec`** (#21). Extra writable roots besides `cwd`, passed as one `codex exec --add-dir` per entry, for monorepo tasks that span packages. Off by default. Entries resolve against `cwd`, must exist, and must use shell-safe characters (`INVALID_ADD_DIR` otherwise). `addDirs` needs a writable sandbox, because Codex silently ignores `--add-dir` under `read-only`. It is rejected with `review` and `sessionId`, which have no `--add-dir`. The response header lists the added roots. On Windows, path arguments to the codex spawn are now quoted for cmd.exe.
 - **`outputSchema` on `codex_exec`** (#20). Pass an inline JSON Schema and Codex constrains its final message to it (`codex exec --output-schema`), e.g. review findings as `{severity, file, line, fix}`. skill-codex writes the schema to a private temp file and deletes it when the call ends. The response shows the final message as a JSON block. Works with `sessionId`; rejected with `review`. Codex uses OpenAI strict mode, so a non-strict schema fails with `INVALID_REQUEST`. On Windows, path arguments to the codex spawn are now quoted for cmd.exe, and paths with cmd.exe metacharacters (`%`, `"`, `&`, ...) are refused.
 
 ### Changed

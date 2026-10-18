@@ -240,6 +240,52 @@ describe("execCodex", () => {
     expect(args).toContain("-");
   });
 
+  describe("--add-dir", () => {
+    const withPlatform = async (platform: NodeJS.Platform, fn: () => Promise<void>): Promise<void> => {
+      const original = Object.getOwnPropertyDescriptor(process, "platform");
+      Object.defineProperty(process, "platform", { value: platform, configurable: true });
+      vi.stubEnv("SKILL_CODEX_WINDOWS_SANDBOX", "unelevated");
+      try {
+        await fn();
+      } finally {
+        if (original) Object.defineProperty(process, "platform", original);
+        vi.unstubAllEnvs();
+      }
+    };
+
+    it("repeats --add-dir once per directory on a fresh exec run, before the stdin sentinel", async () => {
+      await withPlatform("linux", async () => {
+        mockSpawn.mockReturnValue(makeMockProcess({ stdoutData: agentOutput("ok") }) as any);
+        await execCodex({ prompt: "x", cwd: "/repo/app", mode: "full-auto", addDirs: ["/repo/lib", "/repo/shared lib"] });
+
+        const [_bin, args] = mockSpawn.mock.calls[0];
+        const flags = args.flatMap((a: string, i: number) => (a === "--add-dir" ? [args[i + 1]] : []));
+        expect(flags).toEqual(["/repo/lib", "/repo/shared lib"]);
+        expect(args[args.length - 1]).toBe("-");
+      });
+    });
+
+    it("quotes each directory for cmd.exe on Windows", async () => {
+      await withPlatform("win32", async () => {
+        mockSpawn.mockReturnValue(makeMockProcess({ stdoutData: agentOutput("ok") }) as any);
+        await execCodex({ prompt: "x", cwd: "C:\\repo", mode: "full-auto", addDirs: ["C:\\Users\\John Smith\\lib", "D:\\"] });
+
+        const [_bin, args] = mockSpawn.mock.calls[0];
+        const flags = args.flatMap((a: string, i: number) => (a === "--add-dir" ? [args[i + 1]] : []));
+        expect(flags).toEqual(['"C:\\Users\\John Smith\\lib"', '"D:\\\\"']);
+      });
+    });
+
+    it("never passes --add-dir to exec resume or exec review", async () => {
+      mockSpawn.mockReturnValue(makeMockProcess({ stdoutData: agentOutput("ok") }) as any);
+      await execCodex({ prompt: "x", cwd: "/tmp", mode: "full-auto", sessionId: "s-1", addDirs: ["/tmp/lib"] });
+      mockSpawn.mockReturnValue(makeMockProcess({ stdoutData: agentOutput("ok") }) as any);
+      await execCodex({ prompt: "", cwd: "/tmp", mode: "full-auto", review: true, addDirs: ["/tmp/lib"] });
+
+      for (const call of mockSpawn.mock.calls) expect(call[1]).not.toContain("--add-dir");
+    });
+  });
+
   it("uses native review with uncommitted changes and no sandbox", async () => {
     const validOutput = agentOutput("done");
     const proc = makeMockProcess({ stdoutData: validOutput });

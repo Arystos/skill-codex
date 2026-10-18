@@ -102,6 +102,17 @@ describe("saveFullOutput", () => {
   });
 });
 
+describe("add-dir header line", () => {
+  it("lists the extra writable roots when addDirs were passed", () => {
+    const text = formatRichResponse(result(), { mode: "full-auto", addDirs: ["/repo/lib", "/repo/shared"] }, "/repo/app");
+    expect(text).toContain("  add-dir (writable): /repo/lib, /repo/shared");
+  });
+
+  it("omits the line without addDirs", () => {
+    expect(formatRichResponse(result(), { mode: "full-auto", addDirs: [] }, "/repo")).not.toContain("add-dir");
+  });
+});
+
 describe("structured output (outputSchema)", () => {
   const schema = { type: "object" };
 

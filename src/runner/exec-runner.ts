@@ -42,6 +42,12 @@ export interface ExecParams {
   readonly reviewCommit?: string;
   readonly timeoutMs?: number;
   /**
+   * Validated absolute directories for `--add-dir` (extra writable roots).
+   * Passed only on a fresh exec run: `exec resume` and `exec review` have no
+   * such flag.
+   */
+  readonly addDirs?: readonly string[];
+  /**
    * Absolute path of a JSON Schema file for `--output-schema`. Codex then
    * constrains its final message to that schema. Not used with review.
    */
@@ -153,6 +159,10 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
       const sandbox =
         params.sandbox ?? (params.mode === "full-auto" ? "workspace-write" : "read-only");
       args = ["exec", "--json", "--skip-git-repo-check", "--sandbox", sandbox];
+      // --add-dir is repeatable: one flag per directory.
+      for (const dir of params.addDirs ?? []) {
+        args.push("--add-dir", toPathArg(dir));
+      }
       sendStdinPrompt = true;
     }
 

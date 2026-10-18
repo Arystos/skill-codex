@@ -14,6 +14,8 @@ export interface CallMeta {
   readonly review?: boolean;
   readonly model?: string;
   readonly reasoningEffort?: string;
+  /** Extra writable roots passed with `--add-dir`, already resolved. */
+  readonly addDirs?: readonly string[];
   /** Set when the call passed `--output-schema`; its final message is then JSON. */
   readonly outputSchema?: Readonly<Record<string, unknown>>;
 }
@@ -115,6 +117,7 @@ export function formatRichResponse(result: CodexResult, meta: CallMeta, cwd: str
   if (result.sessionId) {
     lines.push(`  session: ${result.sessionId} (pass as sessionId to continue this conversation)`);
   }
+  if (meta.addDirs && meta.addDirs.length > 0) lines.push(`  add-dir (writable): ${meta.addDirs.join(", ")}`);
   if (result.logPath) lines.push(`  live log: ${result.logPath}`);
   lines.push(...formatActivity(result.activity));
 
