@@ -21,13 +21,15 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          # Trusted publishing needs Node >= 22.14; npm's example uses 24.
+          node-version: 24
           registry-url: https://registry.npmjs.org
           # No dependency cache in the release job: a poisoned cache entry
           # could end up in the published package (setup-node's guidance).
+          package-manager-cache: false
 
       # `npm stage` needs npm >= 11.21.0 (trusted publishing alone needs
-      # 11.5.1); Node 22 ships npm 10.
+      # 11.5.1).
       - run: npm install -g npm@11.21.0
       - run: npm ci
       - run: npm run typecheck
@@ -35,4 +37,6 @@ jobs:
       - run: npm run build
       # Uploads the release as staged. Approve it on npmjs.com (or with
       # `npm stage approve <id>`) to publish it.
-      - run: npm stage publish . --provenance
+      # Verbose logging shows the OIDC token exchange result if it fails
+      # (npm logs that reason only at verbose level).
+      - run: npm stage publish . --provenance --loglevel verbose
