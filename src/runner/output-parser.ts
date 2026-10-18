@@ -14,6 +14,7 @@ export interface ActivityEntry {
 export interface TokenUsage {
   readonly input_tokens: number;
   readonly cached_input_tokens: number;
+  readonly cache_write_input_tokens: number;
   readonly output_tokens: number;
   readonly reasoning_output_tokens: number;
 }
@@ -76,6 +77,7 @@ function toTokenUsage(usage: JsonObject): TokenUsage {
   return {
     input_tokens: usage.input_tokens ?? 0,
     cached_input_tokens: usage.cached_input_tokens ?? 0,
+    cache_write_input_tokens: usage.cache_write_input_tokens ?? 0,
     output_tokens: usage.output_tokens ?? 0,
     reasoning_output_tokens: usage.reasoning_output_tokens ?? 0,
   };
