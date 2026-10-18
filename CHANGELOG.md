@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-18
+
 ### Changed
 - **Model examples updated.** `gpt-5.5` was retired for ChatGPT-auth users on 2026-10-14. Docs, command help, and the `model` tool description now use `gpt-6.1-sol` and `gpt-6-luna` (slugs from the Codex 0.163.0 bundled catalog) and point to `codex debug models`, since availability depends on the ChatGPT plan.
 - Verified against codex-cli 0.163.0.
@@ -30,6 +32,11 @@ All notable changes to this project will be documented in this file.
 - **Weekly `codex-drift` workflow.** It installs the latest Codex CLI, checks the contract against `--help` and the upstream `exec_events.rs`, and opens a `codex-cli-drift` issue on breaking drift or on a new Codex minor version.
 - **`/codex-review --spec <path>`** — Codex checks that every requirement in the spec is implemented, every listed edge case has a test, and nothing outside the spec's scope changed. Claude adds a requirements checklist to the result.
 - **One-time version note.** When the installed Codex is a minor version newer or older than the verified one, the first response of a session says so.
+- **Audit pass in `/codex-review`.** Before the verdict, Claude checks every Codex finding against the code and labels it keep / rewrite / drop (with a typed reason) / new. Only findings backed by quoted code survive, and dropped ones are listed under "Filtered".
+- **`--effort` and `--model` flags** on `/codex-review`, `/codex-do` and `/codex-consult`.
+- **Cache-write tokens in the header.** codex-cli 0.163.0 reports `cache_write_input_tokens`; the `codex_exec` header shows `(N cache write)` when N > 0.
+- **Cross-model review eval harness** (`npm run eval`): 12 seeded one-bug diffs scored for catch rate and false positives. The mock reviewer is the default and costs nothing; the live reviewer is opt-in and never receives the answer key.
+- **Model routing recipe** in `docs/CONFIGURATION.md` (contributed by @praveenkumarr18).
 
 ### Removed
 - Parser, progress and live-log handling for `file_read` / `file_write` / `file_edit` items and top-level `result` / `message` events. No version of Codex's `exec --json` schema has emitted them.
@@ -37,6 +44,9 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - A failed command with `exit_code: null` showed "exit null"; it now shows `failed`.
 - `skill-codex --version` printed `0.0.0` from the built bin (it looked for `package.json` inside `dist/`).
+
+### Security
+- Raised dependency floors (`@modelcontextprotocol/sdk` ^1.29.0, `vitest` ^3.2.7, `tsup` ^8.5.1) so a fresh install cannot resolve a vulnerable version, and added a SkillSpector baseline that only suppresses generated files and the deliberately vulnerable eval corpus.
 
 ## [0.8.1] - 2026-06-20
 
