@@ -162,6 +162,7 @@ These `codex_exec` parameters are all optional — omit them and Codex uses its 
 * **`sandbox`** — explicit policy (`read-only`, `workspace-write`, `danger-full-access`), overriding `mode`. Use `danger-full-access` only when you understand the risk.
 * **`sessionId`** — resume a previous Codex session for multi-round memory. Each response includes the session's thread id; pass it back so Codex retains context — e.g. a follow-up review that checks whether *previously flagged* issues were fixed.
 * **`review`** — run Codex's native diff-scoped reviewer (`codex exec review`), optionally targeting a branch (`reviewBase`) or commit (`reviewCommit`).
+* **`outputSchema`** — an inline JSON Schema for Codex's final message (`codex exec --output-schema`), e.g. review findings as `{severity, file, line, fix}` objects instead of prose. The response shows that message as a JSON block. Codex uses OpenAI strict mode, so every object needs `"additionalProperties": false` and all its properties in `required`. Not supported with `review`.
 
 Model routing recipes: [docs/CONFIGURATION.md](docs/CONFIGURATION.md#model-routing-recipes).
 

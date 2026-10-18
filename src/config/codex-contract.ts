@@ -8,9 +8,9 @@ export const VERIFIED_CODEX_VERSION = "0.163.0";
 
 /** Flags the runner passes, per `codex` subcommand (checked against `--help`). */
 export const REQUIRED_FLAGS: Readonly<Record<string, readonly string[]>> = {
-  exec: ["--json", "--skip-git-repo-check", "--sandbox", "--model", "--config", "--ephemeral"],
+  exec: ["--json", "--skip-git-repo-check", "--sandbox", "--model", "--config", "--ephemeral", "--output-schema"],
   "exec review": ["--json", "--skip-git-repo-check", "--uncommitted", "--base", "--commit", "--model", "--config"],
-  "exec resume": ["--json", "--skip-git-repo-check", "--model", "--config"],
+  "exec resume": ["--json", "--skip-git-repo-check", "--model", "--config", "--output-schema"],
 };
 
 /** Top-level `codex exec --json` event types the parser and progress code read. */

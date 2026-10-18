@@ -9,6 +9,7 @@ import {
 import { getNextDepth } from "../guards/check-recursion.js";
 import { getCachedBinaryPath } from "../guards/check-binary.js";
 import { getSandboxConfigArgs, getSandboxGitEnv } from "./sandbox-args.js";
+import { toPathArg } from "./path-arg.js";
 import { setupTimeout } from "./timeout.js";
 import {
   parseCodexOutput,
@@ -40,6 +41,11 @@ export interface ExecParams {
   readonly reviewBase?: string;
   readonly reviewCommit?: string;
   readonly timeoutMs?: number;
+  /**
+   * Absolute path of a JSON Schema file for `--output-schema`. Codex then
+   * constrains its final message to that schema. Not used with review.
+   */
+  readonly outputSchemaPath?: string;
   /**
    * Optional live-progress sink. Called with a short status line each time
    * Codex emits a meaningful JSONL event, plus a periodic heartbeat during
@@ -156,6 +162,11 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
 
     if (params.reasoningEffort) {
       args.push("-c", `model_reasoning_effort=${params.reasoningEffort}`);
+    }
+
+    // `exec` and `exec resume` both accept --output-schema (once).
+    if (params.outputSchemaPath) {
+      args.push("--output-schema", toPathArg(params.outputSchemaPath));
     }
 
     // Windows sandbox backend (see sandbox-args.ts). Empty on non-Windows.
