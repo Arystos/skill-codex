@@ -42,6 +42,8 @@ import { spawn } from "node:child_process";
 import { getCachedBinaryPath } from "../../src/guards/check-binary.js";
 import { getNextDepth } from "../../src/guards/check-recursion.js";
 import { execCodex } from "../../src/runner/exec-runner.js";
+import { withRetry } from "../../src/runner/retry.js";
+import { NO_FINAL_MESSAGE } from "../../src/runner/output-parser.js";
 
 const mockSpawn = vi.mocked(spawn);
 const mockGetCachedBinaryPath = vi.mocked(getCachedBinaryPath);
@@ -506,6 +508,23 @@ describe("execCodex", () => {
     const result = await execCodex({ prompt: "check code", cwd: "/tmp", mode: "exec" });
 
     expect(result.content).toBe("Review complete");
+  });
+
+  it("does not retry a write run that ended with an empty final message (#59)", async () => {
+    const stdoutData = [
+      { type: "thread.started", thread_id: "t-59" },
+      { type: "item.completed", item: { id: "item_1", type: "file_change", status: "completed", changes: [{ path: "hello.txt", kind: "add" }] } },
+      { type: "item.completed", item: { id: "item_2", type: "agent_message", text: "" } },
+      { type: "turn.completed", usage: { input_tokens: 1, output_tokens: 1 } },
+    ]
+      .map((e) => JSON.stringify(e))
+      .join("\n");
+    mockSpawn.mockImplementation(() => makeMockProcess({ stdoutData }) as any);
+
+    const result = await withRetry(() => execCodex({ prompt: "write hello.txt", cwd: "/tmp", mode: "full-auto" }), { maxRetries: 2 });
+
+    expect(result.content).toBe(NO_FINAL_MESSAGE);
+    expect(mockSpawn).toHaveBeenCalledTimes(1);
   });
 
   it("rejects with BridgeError on non-zero exit code", async () => {

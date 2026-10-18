@@ -51,6 +51,13 @@ const ICON_OK = "✔";
 const ICON_FAIL = "✘";
 const ICON_WRITE = "✎";
 
+/**
+ * Content for a run that did work but ended without a final message. Throwing
+ * EmptyOutputError here would be wrong: it is retryable, and a retry repeats
+ * the run's file writes and commands.
+ */
+export const NO_FINAL_MESSAGE = "Codex completed the turn without a final message. See the actions above.";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type JsonObject = Record<string, any>;
 
@@ -137,35 +144,49 @@ export function parseCodexOutput(raw: string): CodexResult {
   // Local accumulators: filled in one pass, never shared until returned.
   const messages: string[] = [];
   const activity: ActivityEntry[] = [];
+  const plainLines: string[] = [];
   let sessionId: string | undefined;
   let usage: TokenUsage | null = null;
+  let turnCompleted = false;
 
   for (const line of lines) {
     // Non-JSON lines are preamble or status output; they only feed the fallback.
     const evt = parseJsonObject(line);
-    if (!evt) continue;
+    if (!evt) {
+      plainLines.push(line);
+      continue;
+    }
 
     if (evt.type === "thread.started" && typeof evt.thread_id === "string") {
       sessionId = evt.thread_id;
-    } else if (evt.type === "turn.completed" && evt.usage) {
-      usage = toTokenUsage(evt.usage);
+    } else if (evt.type === "turn.completed") {
+      turnCompleted = true;
+      if (evt.usage) usage = toTokenUsage(evt.usage);
     } else if (evt.item?.type === "command_execution") {
       const entry = toExecActivity(evt.item);
       if (entry) activity.push(entry);
     } else if (evt.item?.type === "file_change") {
       activity.push(...toFileActivity(evt.item));
-    } else if (isFinalAgentMessage(evt)) {
+    } else if (isFinalAgentMessage(evt) && evt.item.text.trim()) {
+      // Codex can emit an empty agent_message after doing work; it adds nothing.
       messages.push(evt.item.text);
     }
   }
 
-  const agentMessage = messages.length > 0 ? messages.join("\n\n") : fallbackText(lines);
-  if (!agentMessage) {
+  // Only a stream with no finished turn and no action is empty output:
+  // nothing ran, so a retry is safe.
+  const content =
+    messages.length > 0
+      ? messages.join("\n\n")
+      : turnCompleted || activity.length > 0
+        ? NO_FINAL_MESSAGE
+        : fallbackText(plainLines);
+  if (!content) {
     throw new EmptyOutputError();
   }
 
   return {
-    content: agentMessage,
+    content,
     ...(messages.length > 0 ? { finalMessage: messages[messages.length - 1] } : {}),
     activity,
     usage,
