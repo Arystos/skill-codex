@@ -1,6 +1,31 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
-import { getSandboxConfigArgs } from "../../src/runner/sandbox-args.js";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import {
+  getSandboxConfigArgs,
+  getSandboxGitEnv,
+  resolveWindowsSandbox,
+} from "../../src/runner/sandbox-args.js";
 import { WINDOWS_SANDBOX_ENV, WINDOWS_SANDBOX_MODES } from "../../src/config/constants.js";
+
+// Every test runs against an empty CODEX_HOME, so the developer's own
+// ~/.codex/config.toml can't change the result.
+let codexHome: string;
+
+beforeEach(() => {
+  codexHome = fs.mkdtempSync(path.join(os.tmpdir(), "sc-sandbox-home-"));
+  vi.stubEnv("CODEX_HOME", codexHome);
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  fs.rmSync(codexHome, { recursive: true, force: true });
+});
+
+function writeCodexConfig(text: string): void {
+  fs.writeFileSync(path.join(codexHome, "config.toml"), text);
+}
 
 /** Temporarily override process.platform (a non-writable property). */
 function withPlatform(platform: NodeJS.Platform, fn: () => void): void {
@@ -36,7 +61,7 @@ describe("getSandboxConfigArgs", () => {
     });
   });
 
-  it("pins windows.sandbox=unelevated by default on Windows", () => {
+  it("uses windows.sandbox=unelevated when nothing is configured", () => {
     withPlatform("win32", () => {
       delete process.env[WINDOWS_SANDBOX_ENV];
       expect(getSandboxConfigArgs()).toEqual(["-c", "windows.sandbox=unelevated"]);
@@ -89,5 +114,79 @@ describe("getSandboxConfigArgs", () => {
       getSandboxConfigArgs();
     });
     expect(stderr).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolveWindowsSandbox", () => {
+  it("prefers a valid override, then config.toml, then the default", () => {
+    expect(resolveWindowsSandbox("mxc", "elevated")).toEqual({ mode: "mxc", source: "env" });
+    expect(resolveWindowsSandbox(undefined, "elevated")).toEqual({ mode: "elevated", source: "config" });
+    expect(resolveWindowsSandbox(undefined, null)).toEqual({ mode: "unelevated", source: "default" });
+  });
+
+  it("reports an invalid override and falls through to config.toml", () => {
+    expect(resolveWindowsSandbox("bogus", "elevated")).toEqual({
+      mode: "elevated",
+      source: "config",
+      invalidOverride: "bogus",
+    });
+  });
+
+  it("ignores an unknown config.toml value", () => {
+    expect(resolveWindowsSandbox(undefined, "restricted-token")).toEqual({ mode: "unelevated", source: "default" });
+  });
+});
+
+describe("getSandboxConfigArgs with config.toml", () => {
+  it("follows [windows] sandbox from the user's Codex config", () => {
+    writeCodexConfig(['model = "m"', "[windows]", 'sandbox = "elevated"', ""].join("\n"));
+    withPlatform("win32", () => {
+      expect(getSandboxConfigArgs()).toEqual(["-c", "windows.sandbox=elevated"]);
+    });
+  });
+
+  it("lets the env override win over config.toml", () => {
+    writeCodexConfig(["[windows]", 'sandbox = "elevated"', ""].join("\n"));
+    vi.stubEnv(WINDOWS_SANDBOX_ENV, "unelevated");
+    withPlatform("win32", () => {
+      expect(getSandboxConfigArgs()).toEqual(["-c", "windows.sandbox=unelevated"]);
+    });
+  });
+});
+
+describe("getSandboxGitEnv", () => {
+  const topLevel = (): string => "C:/repo";
+
+  it("trusts the repo for git when the elevated backend runs commands as another account", () => {
+    vi.stubEnv(WINDOWS_SANDBOX_ENV, "elevated");
+    withPlatform("win32", () => {
+      expect(getSandboxGitEnv("C:/repo/src", {}, topLevel)).toEqual({
+        GIT_CONFIG_COUNT: "1",
+        GIT_CONFIG_KEY_0: "safe.directory",
+        GIT_CONFIG_VALUE_0: "C:/repo",
+      });
+    });
+  });
+
+  it("appends after GIT_CONFIG_* entries that are already set", () => {
+    vi.stubEnv(WINDOWS_SANDBOX_ENV, "elevated");
+    withPlatform("win32", () => {
+      expect(getSandboxGitEnv("C:/repo", { GIT_CONFIG_COUNT: "2" }, topLevel)).toEqual({
+        GIT_CONFIG_COUNT: "3",
+        GIT_CONFIG_KEY_2: "safe.directory",
+        GIT_CONFIG_VALUE_2: "C:/repo",
+      });
+    });
+  });
+
+  it("adds nothing for other modes, other platforms, or outside a git repo", () => {
+    withPlatform("win32", () => {
+      expect(getSandboxGitEnv("C:/repo", {}, topLevel)).toEqual({}); // default unelevated
+      vi.stubEnv(WINDOWS_SANDBOX_ENV, "elevated");
+      expect(getSandboxGitEnv("C:/tmp", {}, () => null)).toEqual({});
+    });
+    withPlatform("linux", () => {
+      expect(getSandboxGitEnv("/repo", {}, topLevel)).toEqual({});
+    });
   });
 });

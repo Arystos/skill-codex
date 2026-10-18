@@ -147,24 +147,29 @@ describe("checkAuth", () => {
 });
 
 describe("checkSandbox", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
   it("skips outside Windows", () => {
     expect(withPlatform("linux", () => checkSandbox()).status).toBe("skip");
   });
 
-  it("is ok for the unelevated default", () => {
-    expect(withPlatform("win32", () => checkSandbox())).toEqual({ name: "sandbox", status: "ok", detail: "windows.sandbox=unelevated" });
+  it("is ok for elevated, naming where the mode came from", () => {
+    const result = withPlatform("win32", () => checkSandbox({ mode: "elevated", source: "config" }));
+    expect(result.status).toBe("ok");
+    expect(result.detail).toContain("windows.sandbox=elevated (~/.codex/config.toml)");
   });
 
-  it("warns for an invalid override and for modes where git fails", () => {
-    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    vi.stubEnv(WINDOWS_SANDBOX_ENV, "bogus");
-    expect(withPlatform("win32", () => checkSandbox()).detail).toContain("not a valid mode");
-    vi.stubEnv(WINDOWS_SANDBOX_ENV, "elevated");
-    expect(withPlatform("win32", () => checkSandbox()).detail).toContain("git commands fail");
+  it("warns that unelevated can't run builds or tests", () => {
+    const result = withPlatform("win32", () => checkSandbox({ mode: "unelevated", source: "default" }));
+    expect(result.status).toBe("warn");
+    expect(result.detail).toContain("can't run builds or tests");
+    expect(result.hint).toContain('sandbox = "elevated"');
+  });
+
+  it("warns for mxc and for an invalid override", () => {
+    expect(withPlatform("win32", () => checkSandbox({ mode: "mxc", source: "env" })).detail).toContain("git commands fail");
+    const invalid = withPlatform("win32", () =>
+      checkSandbox({ mode: "elevated", source: "config", invalidOverride: "bogus" }),
+    );
+    expect(invalid.detail).toContain("bogus is not a valid mode");
   });
 });
 

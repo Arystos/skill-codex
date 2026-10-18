@@ -14,28 +14,34 @@ All optional.
 | `SKILL_CODEX_MAX_RETRIES` | `3` | Retry count for transient errors |
 | `SKILL_CODEX_LOG` | `<os-temp>/skill-codex/<workspace>.log` | Absolute path override for the live, tail-able per-run log |
 | `SKILL_CODEX_DEBUG` | — | Enable debug logging to stderr |
-| `SKILL_CODEX_WINDOWS_SANDBOX` | `unelevated` | Windows only — Codex `windows.sandbox` mode: `unelevated`, `elevated` or `mxc`. Other values are ignored with a stderr warning. See [Windows sandbox mode](#windows-sandbox-mode) |
+| `SKILL_CODEX_WINDOWS_SANDBOX` | `[windows] sandbox` from `~/.codex/config.toml`, else `unelevated` | Windows only — Codex `windows.sandbox` mode: `elevated`, `unelevated` or `mxc`. Other values are ignored with a stderr warning. See [Windows sandbox mode](#windows-sandbox-mode) |
 
 ### Windows sandbox mode
 
 On Windows, skill-codex passes `-c windows.sandbox=<mode>` on every Codex
-call. This overrides `[windows] sandbox` in `~/.codex/config.toml`. The
-default is `unelevated`. Results on codex-cli 0.163.0 (Windows 11, ChatGPT
-auth):
+call. The mode comes from `SKILL_CODEX_WINDOWS_SANDBOX`, else from
+`[windows] sandbox` in `~/.codex/config.toml`, else `unelevated`. Results on
+codex-cli 0.163.0 (Windows 11, ChatGPT auth):
 
-| Mode | Shell spawns | `git status` in your repo | Write inside workspace | Write outside workspace |
-|------|--------------|---------------------------|------------------------|-------------------------|
-| `unelevated` (default) | ✅ | ✅ | ✅ | blocked |
-| `elevated` | ✅ | ❌ *detected dubious ownership* | ✅ | blocked |
-| `mxc` | ✅ | ❌ *this operation must be run in a work tree* | ✅ | blocked |
+| Mode | Codex runs git | Child processes (npm, vitest, builds) | Write inside workspace | Write outside workspace |
+|------|----------------|---------------------------------------|------------------------|-------------------------|
+| `elevated` (recommended) | ✅ via `safe.directory` (set by skill-codex) | ✅ | ✅ | blocked |
+| `unelevated` (fallback) | ✅ directly; ❌ from scripts | ❌ *EPERM* | ✅ | blocked |
+| `mxc` | ❌ *this operation must be run in a work tree* | not tested | ✅ | blocked |
 
-- `elevated` runs commands as a separate local account (`CodexSandboxOffline`).
-  Git refuses repos owned by another user. To use `elevated`, add your repos
-  to git's `safe.directory`.
+- `elevated` runs commands as a separate local account (`CodexSandboxOffline`),
+  so git would refuse your repo with *detected dubious ownership*. skill-codex
+  trusts the workspace repo, and only that repo, for the Codex process through
+  git's `GIT_CONFIG_*` environment variables. Your git config is not changed.
+- `unelevated` needs no one-time setup, which is why it is the fallback. But
+  any process that starts a child process fails with `EPERM`, so Codex cannot
+  run builds or tests ([#26](https://github.com/Arystos/skill-codex/issues/26)).
+  `npx skill-codex doctor` warns about this.
+- To use `elevated`, set `[windows] sandbox = "elevated"` in
+  `~/.codex/config.toml`. Codex may ask for a one-time elevated setup.
 - The older `windows sandbox failed: spawn setup refresh` error with
   `elevated` ([openai/codex#24098](https://github.com/openai/codex/issues/24098),
   [#24259](https://github.com/openai/codex/issues/24259)) is fixed in 0.163.
-  It was the original reason for the pin.
 - `workspace-write` also allows writes under `%TEMP%`, in every mode. That is
   Codex's default writable-roots policy, not a sandbox escape.
 - If Codex resolves its `prefer_mxc` setting, it uses MXC whatever mode is set.

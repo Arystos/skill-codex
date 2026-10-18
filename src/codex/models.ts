@@ -1,7 +1,5 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { runCodexCommand } from "./cli.js";
+import { readConfigString } from "./codex-config.js";
 
 export interface ModelInfo {
   readonly slug: string;
@@ -60,22 +58,9 @@ export async function listAvailableModels(): Promise<readonly ModelInfo[]> {
   }
 }
 
-function getCodexHome(): string {
-  return process.env.CODEX_HOME?.trim() || path.join(os.homedir(), ".codex");
-}
-
 /** The top-level `model = "..."` from Codex's config.toml, or null when unset. */
 export function readConfiguredModel(): string | null {
-  let text: string;
-  try {
-    text = fs.readFileSync(path.join(getCodexHome(), "config.toml"), "utf-8");
-  } catch {
-    return null;
-  }
-  // Top-level keys end at the first [table] header.
-  const topLevel = text.split(/^\s*\[/m)[0] ?? "";
-  const match = topLevel.match(/^\s*model\s*=\s*"([^"]+)"/m);
-  return match?.[1] ?? null;
+  return readConfigString("model");
 }
 
 /** Bullet list of models for the `model` tool parameter; "" when none are known. */

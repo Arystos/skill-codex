@@ -8,7 +8,7 @@ import {
 } from "../config/constants.js";
 import { getNextDepth } from "../guards/check-recursion.js";
 import { getCachedBinaryPath } from "../guards/check-binary.js";
-import { getSandboxConfigArgs } from "./sandbox-args.js";
+import { getSandboxConfigArgs, getSandboxGitEnv } from "./sandbox-args.js";
 import { setupTimeout } from "./timeout.js";
 import {
   parseCodexOutput,
@@ -158,8 +158,7 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
       args.push("-c", `model_reasoning_effort=${params.reasoningEffort}`);
     }
 
-    // Platform-specific sandbox config (e.g. windows.sandbox=unelevated to work
-    // around Codex's broken elevated Windows sandbox). Empty on non-Windows.
+    // Windows sandbox backend (see sandbox-args.ts). Empty on non-Windows.
     args.push(...getSandboxConfigArgs());
 
     // Prompt passed via stdin to avoid shell injection — NOT as a positional arg
@@ -173,6 +172,8 @@ export async function execCodex(params: ExecParams): Promise<CodexResult> {
 
     const env = {
       ...process.env,
+      // Lets git trust the workspace repo under Windows' elevated sandbox; empty otherwise.
+      ...getSandboxGitEnv(params.cwd),
       [BRIDGE_DEPTH_ENV]: String(getNextDepth()),
     };
 

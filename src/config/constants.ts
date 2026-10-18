@@ -42,19 +42,16 @@ export const CONFIG_ONLY_FILES = [".gitignore", ".eslintrc", ".prettierrc", ".ed
 
 export const DEBUG_ENV = "SKILL_CODEX_DEBUG";
 
-// Windows sandbox backend passed as `-c windows.sandbox=<mode>`. Originally
-// pinned because the "elevated" backend failed to spawn shells ("windows
-// sandbox: spawn setup refresh", openai/codex#24098, #24259). That bug is fixed
-// as of codex-cli 0.163, but re-tested on 0.163 the pin is still needed:
-// - elevated runs commands as a separate local account (CodexSandboxOffline),
-//   so git refuses every repo the user owns ("detected dubious ownership");
-// - mxc fails `git status` with "this operation must be run in a work tree".
-// unelevated runs git normally, and all three block writes outside the
-// workspace. Override with SKILL_CODEX_WINDOWS_SANDBOX (one of the modes below).
+// Windows sandbox backend passed as `-c windows.sandbox=<mode>`. Chosen from
+// SKILL_CODEX_WINDOWS_SANDBOX, else `[windows] sandbox` in ~/.codex/config.toml,
+// else WINDOWS_SANDBOX_DEFAULT. What each backend can do is documented in
+// src/runner/sandbox-args.ts.
 export const WINDOWS_SANDBOX_ENV = "SKILL_CODEX_WINDOWS_SANDBOX";
 // The values codex-rs accepts for `windows.sandbox` (windows_sandbox_config.rs).
 export const WINDOWS_SANDBOX_MODES = ["elevated", "unelevated", "mxc"] as const;
 export type WindowsSandboxMode = (typeof WINDOWS_SANDBOX_MODES)[number];
+// Used only when neither is set: unelevated needs no one-time elevated setup,
+// but Codex can't start child processes under it (no builds or tests, #26).
 export const WINDOWS_SANDBOX_DEFAULT: WindowsSandboxMode = "unelevated";
 
 export const TRANSIENT_PATTERNS = [

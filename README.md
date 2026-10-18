@@ -61,7 +61,7 @@ Because a subagent is the **same model**. When Claude reviews Claude, you inheri
 | | skill-codex | Most Codex MCP bridges |
 |---|---|---|
 | **Windows** verified in CI (not just "should work") | ✅ 9-way matrix (Windows/macOS/Linux × Node 18/20/22) | ❌ usually Linux-only CI |
-| **git works inside Codex's Windows sandbox** (no WSL needed) | ✅ pins `windows.sandbox=unelevated` (re-tested on codex-cli 0.163) | ⚠️ inherit your Codex backend; under `elevated`, git rejects your repo |
+| **git and builds work inside Codex's Windows sandbox** (no WSL needed) | ✅ under `elevated`, skill-codex trusts the workspace repo for git (re-tested on codex-cli 0.163) | ⚠️ inherit your Codex backend; under `elevated`, git rejects your repo |
 | **Live progress** so long runs never look frozen | ✅ MCP progress + tail-able log | ⚠️ varies |
 | **Slash commands** (`/codex-review`, `/codex-do`, `/codex-consult`) | ✅ | ⚠️ some |
 | **Auto-review hook** (PostToolUse) | ✅ | ❌ |
@@ -193,7 +193,7 @@ Everything is optional. The most common knobs:
 |----------|---------|-------------|
 | `SKILL_CODEX_TIMEOUT_MS` | `300000` (5 min) | Subprocess timeout |
 | `SKILL_CODEX_MAX_RETRIES` | `3` | Retry count for transient errors |
-| `SKILL_CODEX_WINDOWS_SANDBOX` | `unelevated` | Windows-only Codex sandbox mode: `unelevated`, `elevated` or `mxc` |
+| `SKILL_CODEX_WINDOWS_SANDBOX` | your `[windows] sandbox`, else `unelevated` | Windows-only Codex sandbox mode: `elevated`, `unelevated` or `mxc` |
 
 The auto-review hook skips trivial diffs (docs-only, < 5 lines, whitespace) and forces review on security paths or large/cross-cutting changes, to preserve your Codex quota.
 
@@ -213,7 +213,7 @@ The auto-review hook skips trivial diffs (docs-only, < 5 lines, whitespace) and 
 
 **Lock file blocking runs** — a crashed run can leave a stale `.skill-codex.lock`. It auto-cleans after 15 minutes, or delete it manually.
 
-**Windows: which Codex sandbox does skill-codex use?** — skill-codex always passes `-c windows.sandbox=unelevated` on Windows, so it overrides `[windows] sandbox` in your `~/.codex/config.toml`. Tested on codex-cli 0.163.0, all three backends block writes outside the workspace, but only `unelevated` runs git cleanly. The `elevated` backend runs commands as a separate local account (`CodexSandboxOffline`), so git refuses your repo with *"detected dubious ownership"*. The `mxc` backend fails `git status` with *"this operation must be run in a work tree"*. The older *"windows sandbox failed: spawn setup refresh"* failure ([openai/codex#24098](https://github.com/openai/codex/issues/24098), [#24259](https://github.com/openai/codex/issues/24259)) is fixed in 0.163. To use another backend, set `SKILL_CODEX_WINDOWS_SANDBOX` to `elevated` or `mxc`; for `elevated`, also add your repos to git's `safe.directory`. Other values are ignored with a warning.
+**Windows: which Codex sandbox does skill-codex use?** — the mode from `SKILL_CODEX_WINDOWS_SANDBOX`, else `[windows] sandbox` in your `~/.codex/config.toml`, else `unelevated`. Use `elevated`: on codex-cli 0.163 it is the only backend where Codex can both run git and start child processes (npm, vitest, builds). It runs commands as a separate account, so skill-codex trusts the workspace repo for git through `GIT_CONFIG_*` environment variables (your git config is not changed). Under `unelevated`, Codex can't run builds or tests: child processes fail with `EPERM` ([#26](https://github.com/Arystos/skill-codex/issues/26)). Details: [docs/CONFIGURATION.md](docs/CONFIGURATION.md#windows-sandbox-mode).
 
 ## Security scanning (SkillSpector)
 
