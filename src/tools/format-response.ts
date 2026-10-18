@@ -46,10 +46,15 @@ function formatMetaLine(result: CodexResult, meta: CallMeta, cwd: string): strin
   if (typeof result.durationMs === "number") parts.push(`${(result.durationMs / 1000).toFixed(1)}s`);
 
   if (result.usage) {
-    const { input_tokens: inp, output_tokens: out, cached_input_tokens: cached, reasoning_output_tokens: reasoning } =
-      result.usage;
+    const {
+      input_tokens: inp,
+      output_tokens: out,
+      cached_input_tokens: cached,
+      cache_write_input_tokens: cacheWrite,
+      reasoning_output_tokens: reasoning,
+    } = result.usage;
     parts.push(
-      `${inp} tok in${cached > 0 ? ` (${cached} cached)` : ""} → ${out} out${reasoning > 0 ? ` (+${reasoning} reasoning)` : ""}`,
+      `${inp} tok in${cached > 0 ? ` (${cached} cached)` : ""}${cacheWrite > 0 ? ` (${cacheWrite} cache write)` : ""} → ${out} out${reasoning > 0 ? ` (+${reasoning} reasoning)` : ""}`,
     );
   }
 

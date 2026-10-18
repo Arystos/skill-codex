@@ -141,6 +141,7 @@ describe("parseCodexOutput", () => {
     expect(parseCodexOutput(raw).usage).toEqual({
       input_tokens: 24763,
       cached_input_tokens: 24448,
+      cache_write_input_tokens: 0,
       output_tokens: 122,
       reasoning_output_tokens: 64,
     });
@@ -150,7 +151,16 @@ describe("parseCodexOutput", () => {
     const raw = jsonl({ type: "turn.completed", usage: { input_tokens: 10, output_tokens: 5 } }, agentMessage("done"));
     const usage = parseCodexOutput(raw).usage;
     expect(usage?.cached_input_tokens).toBe(0);
+    expect(usage?.cache_write_input_tokens).toBe(0);
     expect(usage?.reasoning_output_tokens).toBe(0);
+  });
+
+  it("parses cache write input tokens from turn.completed", () => {
+    const raw = jsonl(
+      { type: "turn.completed", usage: { input_tokens: 16626, cached_input_tokens: 11264, cache_write_input_tokens: 512, output_tokens: 5 } },
+      agentMessage("done"),
+    );
+    expect(parseCodexOutput(raw).usage?.cache_write_input_tokens).toBe(512);
   });
 
   it("returns null usage when the turn never completed", () => {

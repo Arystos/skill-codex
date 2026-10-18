@@ -41,6 +41,24 @@ describe("formatActivity", () => {
 });
 
 describe("formatRichResponse", () => {
+  const usage = {
+    input_tokens: 16626,
+    cached_input_tokens: 11264,
+    cache_write_input_tokens: 512,
+    output_tokens: 5,
+    reasoning_output_tokens: 0,
+  };
+
+  it("shows cache write input tokens in the header when greater than 0", () => {
+    const text = formatRichResponse(result({ usage }), { mode: "exec" }, "/repo");
+    expect(text.split("\n")[0]).toContain("16626 tok in (11264 cached) (512 cache write) → 5 out");
+  });
+
+  it("does not show cache write input tokens in the header when 0", () => {
+    const text = formatRichResponse(result({ usage: { ...usage, cache_write_input_tokens: 0 } }), { mode: "exec" }, "/repo");
+    expect(text.split("\n")[0]).not.toContain("cache write");
+  });
+
   it("shows notes under the header", () => {
     const text = formatRichResponse(result(), { mode: "exec" }, "/repo", { notes: ["codex-cli is newer"] });
     expect(text.split("\n")[1]).toBe("  note: codex-cli is newer");
