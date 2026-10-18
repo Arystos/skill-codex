@@ -57,9 +57,10 @@ How changes reach the npm package:
   plugin manifests, `package.json`/`package-lock.json` and `.github/`.
 - **GitHub Actions are pinned to commit SHAs**; Dependabot keeps them and the
   npm dependencies current. CodeQL and secret scanning run on the repository.
-- **Releases are published from a tagged commit by the `publish` workflow**
-  with npm trusted publishing (no long-lived npm token) and a signed provenance
-  statement you can check on the npm package page.
+- **Releases are staged from a tagged commit by the `publish` workflow** with
+  npm trusted publishing (no long-lived npm token) and a signed provenance
+  statement you can check on the npm package page. The workflow cannot
+  publish on its own: a maintainer approves each staged release with 2FA.
 
 ## Scope
 
