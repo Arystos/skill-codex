@@ -71,7 +71,7 @@
     "url": "https://ko-fi.com/arystos"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",

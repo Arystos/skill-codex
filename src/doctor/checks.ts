@@ -45,9 +45,9 @@ export function checkBuild(info: BuildInfo = getBuildInfo()): CheckResult {
 
 export function checkNode(version: string = process.versions.node): CheckResult {
   const major = parseInt(version.split(".")[0] ?? "0", 10);
-  return major >= 18
+  return major >= 20
     ? { name: "node", status: "ok", detail: `v${version}` }
-    : { name: "node", status: "fail", detail: `v${version}`, hint: "skill-codex needs Node.js 18 or newer" };
+    : { name: "node", status: "fail", detail: `v${version}`, hint: "skill-codex needs Node.js 20 or newer" };
 }
 
 export async function checkCodex(): Promise<CheckResult> {

@@ -23,8 +23,8 @@ export async function runVerification(): Promise<{
   const nodeVersion = process.versions.node;
   const nodeMajor = parseInt(nodeVersion.split(".")[0] ?? "0", 10);
   results.push({
-    name: "Node.js >= 18",
-    pass: nodeMajor >= 18,
+    name: "Node.js >= 20",
+    pass: nodeMajor >= 20,
     detail: `v${nodeVersion}`,
   });
 

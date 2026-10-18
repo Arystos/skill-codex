@@ -70,9 +70,9 @@ describe("checkBuild", () => {
 });
 
 describe("checkNode", () => {
-  it("requires Node 18+", () => {
-    expect(checkNode("16.20.0").status).toBe("fail");
-    expect(checkNode("18.0.0").status).toBe("ok");
+  it("requires Node 20+", () => {
+    expect(checkNode("18.20.0").status).toBe("fail");
+    expect(checkNode("20.0.0").status).toBe("ok");
   });
 });
 
