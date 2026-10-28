@@ -1,7 +1,7 @@
 import { EmptyOutputError } from "../errors/errors.js";
 
 // Event and item shapes follow `codex exec --json` as defined in
-// codex-rs/exec/src/exec_events.rs (verified against Codex CLI 0.163.0).
+// codex-rs/exec/src/exec_events.rs (verified against Codex CLI 0.164.0).
 
 export interface ActivityEntry {
   readonly type: "exec" | "write";

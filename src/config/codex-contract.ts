@@ -4,7 +4,7 @@
 // or event — and bump VERIFIED_CODEX_VERSION after a live re-verification.
 
 /** The codex-cli version this release was last verified against end-to-end. */
-export const VERIFIED_CODEX_VERSION = "0.163.0";
+export const VERIFIED_CODEX_VERSION = "0.164.0";
 
 /** Flags the runner passes, per `codex` subcommand (checked against `--help`). */
 export const REQUIRED_FLAGS: Readonly<Record<string, readonly string[]>> = {

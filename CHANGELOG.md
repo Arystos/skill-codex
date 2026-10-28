@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- **Verified against codex-cli 0.164.0** (#63). `VERIFIED_CODEX_VERSION` is now 0.164.0, so `skill-codex doctor` and the first-response notice treat 0.164 as verified. The contract check and the live e2e suite pass. 0.164 adds the `collab_tool_call` item type, which skill-codex ignores.
+
 ## [0.10.0] - 2026-10-19
 
 ### Added
