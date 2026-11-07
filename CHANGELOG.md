@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - **Verified against codex-cli 0.167.0** (#63, #68). `VERIFIED_CODEX_VERSION` is now 0.167.0, so `skill-codex doctor` and the first-response notice treat 0.167 as verified. The contract check and the live e2e suite pass. Codex 0.164 added the `collab_tool_call` item type, which skill-codex ignores.
+- **Upgraded zod from 3 to 4** to fix GHSA-mrhx-c7xc-m3w5, which no 3.x release patches. The wording of zod validation messages in `Invalid input:` errors changes.
 
 ### Fixed
 - **A rejected model falls back to the default again on codex-cli 0.165 and newer.** Since 0.165, Codex reports an unsupported model as plain text with no HTTP status, so skill-codex raised `EXEC_FAILED` and skipped the fallback. A model name with digits such as `500` could also be read as a retryable server error. The plain-text rejection now maps to `INVALID_REQUEST`.
