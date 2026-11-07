@@ -77,6 +77,8 @@ const SERVER_PATTERNS = ["500", "502", "503", "504", "internal server error", "b
 const NETWORK_PATTERNS = ["econnreset", "econnrefused", "etimedout", "network error", "fetch failed", "socket hang up"];
 const DETAIL_MAX = 200;
 const GENERIC_DETAIL_MAX = 300;
+// Since Codex 0.165 a rejected model arrives as plain text, with no HTTP status.
+const MODEL_REJECTION_PATTERN = /\bmodel\b.*\bnot supported\b/i;
 
 /** Map an HTTP status from a JSON-encoded Codex API error; null if it gives no verdict. */
 function classifyStatus(status: number, message: string): BridgeError | null {
@@ -118,7 +120,10 @@ function classifyText(exitCode: number, text: string, codexMessage: string): Bri
 function classifyError(exitCode: number, stderr: string, failure: TurnFailure | null): BridgeError {
   if (!failure) return classifyText(exitCode, stderr, "");
   const byStatus = failure.status === undefined ? null : classifyStatus(failure.status, failure.message);
-  return byStatus ?? classifyText(exitCode, failure.message, failure.message);
+  if (byStatus) return byStatus;
+  // Before keyword matching: a model name can contain "500" or "401".
+  if (MODEL_REJECTION_PATTERN.test(failure.message)) return new InvalidRequestError(failure.message.slice(0, DETAIL_MAX));
+  return classifyText(exitCode, failure.message, failure.message);
 }
 
 export async function execCodex(params: ExecParams): Promise<CodexResult> {

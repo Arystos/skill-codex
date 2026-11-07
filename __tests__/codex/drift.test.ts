@@ -4,6 +4,7 @@ vi.mock("../../src/codex/cli.js", () => ({ runCodexCommand: vi.fn() }));
 
 import { runCodexCommand } from "../../src/codex/cli.js";
 import { decideStatus, runDriftCheck, schemaUrl } from "../../src/codex/drift.js";
+import { VERIFIED_CODEX_VERSION } from "../../src/config/codex-contract.js";
 
 const mockRun = vi.mocked(runCodexCommand);
 
@@ -75,12 +76,12 @@ describe("runDriftCheck", () => {
   });
 
   it("fetches the schema for the installed version and reports ok", async () => {
-    stubCodex("0.163.0");
+    stubCodex(VERIFIED_CODEX_VERSION);
     const fetchText = vi.fn().mockResolvedValue(SCHEMA);
     const report = await runDriftCheck(fetchText);
-    expect(fetchText).toHaveBeenCalledWith(schemaUrl("0.163.0"));
+    expect(fetchText).toHaveBeenCalledWith(schemaUrl(VERIFIED_CODEX_VERSION));
     expect(report.status).toBe("ok");
-    expect(report.version).toBe("0.163.0");
+    expect(report.version).toBe(VERIFIED_CODEX_VERSION);
   });
 
   it("reports outdated with a re-verify hint", async () => {

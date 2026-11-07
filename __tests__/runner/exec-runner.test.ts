@@ -609,6 +609,26 @@ describe("execCodex", () => {
       expect(err.message).not.toContain("{");
     });
 
+    it("surfaces a plain-text model rejection as an invalid-request error", async () => {
+      // Captured live from Codex 0.167.0: since 0.165 this failure has no JSON envelope or status.
+      const message = "The 'skill-codex-e2e-no-such-model' model is not supported when using Codex with a ChatGPT account.";
+      const stdout = jsonl(
+        { type: "thread.started", thread_id: "01a1b5a3-7990-72d3-a314-3631e37e4346" },
+        { type: "turn.started" },
+        { type: "error", message },
+        { type: "turn.failed", error: { message } },
+      );
+      const err = await runFailing(stdout);
+      expect(err).toBeInstanceOf(InvalidRequestError);
+      expect(err.retryable).toBe(false);
+      expect((err as InvalidRequestError).detail).toBe(message);
+    });
+
+    it("matches a plain-text model rejection before keyword matching", async () => {
+      const message = "The 'gpt-500-preview' model is not supported when using Codex with a ChatGPT account.";
+      expect(await runFailing(failedOutput(message))).toBeInstanceOf(InvalidRequestError);
+    });
+
     it("maps an HTTP status from a JSON-encoded error before keyword matching", async () => {
       const encoded = (status: number, message: string) =>
         JSON.stringify({ type: "error", status, error: { type: "api_error", message } });
